@@ -3,6 +3,7 @@
 import { useState } from "react";
 import HotelCanvasViewer from "@/components/HotelCanvasViewer";
 import FloatingProgressNav from "@/components/FloatingProgressNav";
+import CustomCursor from "@/components/CustomCursor";
 import { useLenis } from "@/hooks/useLenis";
 
 export default function Home() {
@@ -69,122 +70,136 @@ export default function Home() {
     });
   };
 
+  const isScrolled = activeFrame > 4;
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
-      {/* 
-        MINIMAL, PREMIUM HERO SECTION OVERLAY
-        - Absolute positioning above the pinned canvas sequence
-        - Zero giant center headings or obstructive text overlays
-        - The architecture remains 100% the visual centerpiece
-      */}
-      <div className="fixed inset-0 z-30 pointer-events-none flex flex-col justify-between p-6 sm:p-10 lg:p-12">
-        {/* TOP ROW: Elegant Top-Left Logo & Minimal Top-Right Navigation */}
-        <div className="w-full flex items-center justify-between">
-          {/* Top-Left: Elegant Architectural Logo */}
-          <div
-            onClick={() => handleJumpToFrame(1)}
-            className="pointer-events-auto flex items-center gap-3.5 group cursor-pointer"
-          >
-            <div className="w-9 h-9 rounded-full border border-amber-400/40 bg-zinc-950/40 backdrop-blur-md flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:border-amber-400/80">
-              <span className="font-serif text-sm tracking-widest text-amber-200">
-                H
-              </span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-light tracking-[0.28em] text-white uppercase font-sans">
-                The Grand Horizon
-              </span>
-              <span className="text-[9px] font-mono tracking-[0.24em] text-zinc-400 uppercase">
-                Resort & Residences
-              </span>
-            </div>
-          </div>
+      {/* 1. Subtle Cinematic Film-Grain Texture */}
+      <div className="film-grain" aria-hidden="true" />
 
-          {/* Top-Right: Minimal Navigation Bar */}
-          <nav className="pointer-events-auto flex items-center gap-4 sm:gap-7 text-xs font-mono tracking-[0.16em] uppercase text-zinc-400">
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(5)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Entrance
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(43)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Living
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(85)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Kitchen
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(127)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Bedroom
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(169)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Bathroom
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJumpToFrame(209)}
-              className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
-            >
-              Garden
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const specSection = document.getElementById("specifications");
-                if (specSection) {
-                  scrollTo(specSection, { duration: 1.6 });
-                }
-              }}
-              className="hidden lg:inline-flex items-center px-4 py-1.5 rounded-full border border-zinc-700/80 bg-zinc-900/40 backdrop-blur-sm text-zinc-200 hover:border-amber-500/60 hover:text-amber-300 transition-all duration-200 text-[11px] cursor-pointer ml-2"
-            >
-              Inquire
-            </button>
-          </nav>
+      {/* 2. Soft Edge Vignette */}
+      <div className="cinematic-vignette" aria-hidden="true" />
+
+      {/* 3. Luxury Custom Cursor with Smooth Interpolation */}
+      <CustomCursor />
+
+      {/* 
+        4. Transparent Navbar that adds subtle blurred background when scrolling
+      */}
+      <header
+        className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ease-out px-6 sm:px-10 lg:px-12 flex items-center justify-between ${
+          isScrolled
+            ? "py-3.5 sm:py-4 bg-zinc-950/45 backdrop-blur-xl border-b border-white/[0.06] shadow-lg shadow-black/25"
+            : "py-6 sm:py-8 bg-transparent border-b border-transparent"
+        }`}
+      >
+        {/* Top-Left: Elegant Architectural Logo */}
+        <div
+          onClick={() => handleJumpToFrame(1)}
+          className="flex items-center gap-3.5 group cursor-pointer"
+        >
+          <div className="w-9 h-9 rounded-full border border-amber-400/40 bg-zinc-950/40 backdrop-blur-md flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:border-amber-400/80">
+            <span className="font-serif text-sm tracking-widest text-amber-200">
+              H
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-light tracking-[0.28em] text-white uppercase font-sans">
+              The Grand Horizon
+            </span>
+            <span className="text-[9px] font-mono tracking-[0.24em] text-zinc-400 uppercase">
+              Resort & Residences
+            </span>
+          </div>
         </div>
 
-        {/* BOTTOM ROW: Small Animated Scroll Indicator at Bottom Center */}
-        <div className="w-full flex justify-center pb-2">
-          <div
-            className={`pointer-events-auto flex flex-col items-center gap-2 transition-all duration-700 ${
-              activeFrame > 15
-                ? "opacity-0 translate-y-3 pointer-events-none"
-                : "opacity-100 translate-y-0"
-            }`}
+        {/* Top-Right: Minimal Navigation Bar */}
+        <nav className="flex items-center gap-4 sm:gap-7 text-xs font-mono tracking-[0.16em] uppercase text-zinc-400">
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(5)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
           >
-            <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-zinc-400">
-              Scroll
-            </span>
-            <div className="w-[18px] h-8 rounded-full border border-zinc-600/70 bg-zinc-950/30 backdrop-blur-sm flex justify-center pt-1.5 shadow-md">
-              <div className="w-1 h-2 rounded-full bg-amber-400/90 animate-bounce" />
-            </div>
+            Entrance
+          </button>
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(43)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
+          >
+            Living
+          </button>
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(85)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
+          >
+            Kitchen
+          </button>
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(127)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
+          >
+            Bedroom
+          </button>
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(169)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
+          >
+            Bathroom
+          </button>
+          <button
+            type="button"
+            onClick={() => handleJumpToFrame(209)}
+            className="hover:text-amber-200 transition-colors duration-200 cursor-pointer"
+          >
+            Garden
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const specSection = document.getElementById("specifications");
+              if (specSection) {
+                scrollTo(specSection, { duration: 1.6 });
+              }
+            }}
+            className="hidden lg:inline-flex items-center px-4 py-1.5 rounded-full border border-zinc-700/80 bg-zinc-900/40 backdrop-blur-sm text-zinc-200 hover:border-amber-500/60 hover:text-amber-300 transition-all duration-200 text-[11px] cursor-pointer ml-2"
+          >
+            Inquire
+          </button>
+        </nav>
+      </header>
+
+      {/* 
+        5. Bottom-Center Animated Scroll Indicator
+        (Fades out gracefully once the user starts scrolling)
+      */}
+      <div className="fixed bottom-6 sm:bottom-8 inset-x-0 pointer-events-none z-30 flex justify-center">
+        <div
+          className={`flex flex-col items-center gap-2 transition-all duration-700 ${
+            activeFrame > 15
+              ? "opacity-0 translate-y-3 pointer-events-none"
+              : "opacity-100 translate-y-0"
+          }`}
+        >
+          <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-zinc-400">
+            Scroll
+          </span>
+          <div className="w-[18px] h-8 rounded-full border border-zinc-600/70 bg-zinc-950/40 backdrop-blur-sm flex justify-center pt-1.5 shadow-md">
+            <div className="w-1 h-2 rounded-full bg-amber-400/90 animate-bounce" />
           </div>
         </div>
       </div>
 
-      {/* FLOATING PROGRESS NAVIGATION (Fixed to the right side of the screen) */}
+      {/* 6. FLOATING PROGRESS NAVIGATION (Fixed to the right side of the screen) */}
       <FloatingProgressNav
         activeFrame={activeFrame}
         onSelectRoom={handleJumpToFrame}
       />
 
-      {/* PINNED GSAP SCROLLTRIGGER CANVAS SECTION */}
+      {/* 7. PINNED GSAP SCROLLTRIGGER CANVAS SECTION */}
       <main className="relative w-full">
         <HotelCanvasViewer
           totalFrames={248}
