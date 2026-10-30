@@ -1,35 +1,38 @@
 /**
  * High-performance Least Recently Used (LRU) Cache
- * Optimized for ImageBitmaps and memory-heavy decoded media.
+ * Designed for efficient image and ImageBitmap memory management.
  */
 export class LRUCache {
   /**
-   * @param {number} maxCapacity Maximum number of entries to retain.
-   * @param {((key: any, value: any) => void) | null} onEvict Optional cleanup hook invoked when an entry is evicted.
+   * @param {number} capacity - Maximum number of items before eviction
+   * @param {Function} [onEvict] - Optional callback when an item is evicted: (key, value) => void
    */
-  constructor(maxCapacity = 80, onEvict = null) {
-    this.maxCapacity = Math.max(1, maxCapacity);
+  constructor(capacity = 80, onEvict = null) {
+    if (capacity <= 0) {
+      throw new Error("LRUCache capacity must be greater than 0");
+    }
+    this.capacity = capacity;
     this.onEvict = onEvict;
     this.cache = new Map();
   }
 
   /**
-   * Retrieves an item and marks it as most recently used.
-   * @param {any} key
-   * @returns {any}
+   * Get an item and mark it as most recently used.
+   * @param {*} key
+   * @returns {*}
    */
   get(key) {
     if (!this.cache.has(key)) return undefined;
     const value = this.cache.get(key);
-    // Refresh access order (delete and re-insert)
+    // Refresh order by re-inserting
     this.cache.delete(key);
     this.cache.set(key, value);
     return value;
   }
 
   /**
-   * Checks if key exists without altering access order.
-   * @param {any} key
+   * Check if a key is present without updating LRU order.
+   * @param {*} key
    * @returns {boolean}
    */
   has(key) {
@@ -37,25 +40,32 @@ export class LRUCache {
   }
 
   /**
-   * Inserts or updates an item in the cache.
-   * If capacity is exceeded, evicts the oldest entry and invokes onEvict.
-   * @param {any} key
-   * @param {any} value
+   * Peek at value without updating LRU order.
+   * @param {*} key
+   * @returns {*}
    */
-  put(key, value) {
+  peek(key) {
+    return this.cache.get(key);
+  }
+
+  /**
+   * Store an item. If capacity exceeded, evicts the least recently used item.
+   * @param {*} key
+   * @param {*} value
+   */
+  set(key, value) {
     if (this.cache.has(key)) {
-      // If updating existing, remove old entry first
       this.cache.delete(key);
-    } else if (this.cache.size >= this.maxCapacity) {
-      // Evict oldest (first element in Map insertion order)
+    } else if (this.cache.size >= this.capacity) {
+      // First key in Map iterator is the oldest / least recently used
       const oldestKey = this.cache.keys().next().value;
       const oldestValue = this.cache.get(oldestKey);
       this.cache.delete(oldestKey);
-      if (typeof this.onEvict === "function") {
+      if (this.onEvict) {
         try {
           this.onEvict(oldestKey, oldestValue);
-        } catch (err) {
-          console.warn("[LRUCache] Error during eviction callback:", err);
+        } catch (e) {
+          console.error("Error in LRUCache onEvict:", e);
         }
       }
     }
@@ -63,36 +73,34 @@ export class LRUCache {
   }
 
   /**
-   * Deletes a specific key from the cache.
-   * @param {any} key
+   * Remove a specific key
+   * @param {*} key
    * @returns {boolean}
    */
   delete(key) {
-    if (this.cache.has(key)) {
-      const value = this.cache.get(key);
-      this.cache.delete(key);
-      if (typeof this.onEvict === "function") {
-        try {
-          this.onEvict(key, value);
-        } catch (err) {
-          console.warn("[LRUCache] Error during eviction callback:", err);
-        }
+    if (!this.cache.has(key)) return false;
+    const value = this.cache.get(key);
+    this.cache.delete(key);
+    if (this.onEvict) {
+      try {
+        this.onEvict(key, value);
+      } catch (e) {
+        console.error("Error in LRUCache onEvict:", e);
       }
-      return true;
     }
-    return false;
+    return true;
   }
 
   /**
-   * Clears the entire cache, executing onEvict for all retained items.
+   * Clear all entries, notifying evictions
    */
   clear() {
-    if (typeof this.onEvict === "function") {
+    if (this.onEvict) {
       for (const [key, value] of this.cache.entries()) {
         try {
           this.onEvict(key, value);
-        } catch (err) {
-          console.warn("[LRUCache] Error clearing entry:", key, err);
+        } catch (e) {
+          console.error("Error in LRUCache onEvict:", e);
         }
       }
     }
@@ -100,14 +108,16 @@ export class LRUCache {
   }
 
   /**
-   * Current number of items in cache.
+   * Number of items currently in cache
+   * @returns {number}
    */
   get size() {
     return this.cache.size;
   }
 
   /**
-   * Returns array of keys currently in cache.
+   * Get all active keys
+   * @returns {Array}
    */
   keys() {
     return Array.from(this.cache.keys());
