@@ -6,19 +6,19 @@ import { LRUCache } from "./lruCache";
 /**
  * Intelligent Image Sequence Preloader & Progressive Background Caching Hook
  *
- * @param {Object} options
- * @param {number} [options.totalFrames=248] - Total number of frames in sequence
- * @param {number} [options.initialBatchSize=50] - Number of initial frames to load before readiness
- * @param {string} [options.basePath="/hotel-frames/"] - Directory containing frames
- * @param {number} [options.cacheCapacity=120] - Max decoded frames to retain in memory
- * @param {number} [options.concurrency=4] - Max simultaneous background network requests
+ * Guarantees:
+ * - All 248 frames are preserved in memory without premature eviction
+ * - First 50 frames are loaded before signaling readiness
+ * - Remaining frames (51 to 248) are streamed progressively in the background
+ * - Re-trigger canvas redraw if the active frame finishes loading
  */
 export function useFrameSequence({
   totalFrames = 248,
   initialBatchSize = 50,
   basePath = "/hotel-frames/",
-  cacheCapacity = 120,
+  cacheCapacity = 300, // Ample capacity for all 248 frames
   concurrency = 4,
+  onActiveFrameReady,
 } = {}) {
   const [initialProgress, setInitialProgress] = useState(0);
   const [isInitialReady, setIsInitialReady] = useState(false);
@@ -36,7 +36,9 @@ export function useFrameSequence({
     [basePath]
   );
 
-  // References to keep state across renders without causing re-renders
+  // Permanent frame storage map (index -> HTMLImageElement | ImageBitmap)
+  // Ensures NO frame is ever evicted or lost during scrolling
+  const framesMapRef = useRef(new Map());
   const lruCacheRef = useRef(null);
   const activeRequestsRef = useRef(new Map()); // index -> AbortController
   const queueRef = useRef([]); // priority queue of frame indices to load
@@ -45,13 +47,20 @@ export function useFrameSequence({
   const isDestroyedRef = useRef(false);
   const currentTargetFrameRef = useRef(1);
   const processQueueRef = useRef(null);
+  const onActiveFrameReadyRef = useRef(onActiveFrameReady);
 
-  // Initialize LRU Cache
+  useEffect(() => {
+    onActiveFrameReadyRef.current = onActiveFrameReady;
+  }, [onActiveFrameReady]);
+
+  // Initialize Cache
   useEffect(() => {
     isDestroyedRef.current = false;
     const activeRequests = activeRequestsRef.current;
+    const framesMap = framesMapRef.current;
+
     lruCacheRef.current = new LRUCache(cacheCapacity, (key, value) => {
-      // Clean up GPU memory for ImageBitmap
+      // Eviction callback only if explicitly needed
       if (value && typeof value.close === "function") {
         try {
           value.close();
@@ -61,7 +70,6 @@ export function useFrameSequence({
 
     return () => {
       isDestroyedRef.current = true;
-      // Abort all in-flight requests
       activeRequests.forEach((controller) => {
         try {
           controller.abort();
@@ -72,43 +80,23 @@ export function useFrameSequence({
       if (lruCacheRef.current) {
         lruCacheRef.current.clear();
       }
+      framesMap.clear();
     };
   }, [cacheCapacity]);
 
-  // Decode image asynchronously into an ImageBitmap or HTMLImageElement
+  // Decode image asynchronously and safely into memory
   const loadSingleFrame = useCallback(
     async (index, signal) => {
-      // Check cache first
-      if (lruCacheRef.current?.has(index)) {
-        return lruCacheRef.current.get(index);
+      // 1. Check permanent map first
+      if (framesMapRef.current.has(index)) {
+        return framesMapRef.current.get(index);
       }
 
       const url = getFrameUrl(index);
 
-      // Prefer fetch + createImageBitmap for zero main-thread decode jank
-      if (typeof window !== "undefined" && "createImageBitmap" in window) {
-        try {
-          const res = await fetch(url, { signal });
-          if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-          const blob = await res.blob();
-          if (signal?.aborted || isDestroyedRef.current) return null;
-
-          const bitmap = await createImageBitmap(blob);
-          if (signal?.aborted || isDestroyedRef.current) {
-            if (typeof bitmap.close === "function") bitmap.close();
-            return null;
-          }
-
-          lruCacheRef.current?.set(index, bitmap);
-          return bitmap;
-        } catch (err) {
-          if (err.name === "AbortError" || signal?.aborted) return null;
-          // Fallback to HTMLImageElement if fetch/bitmap fails
-        }
-      }
-
-      // Fallback: standard HTMLImageElement with async .decode()
-      return new Promise((resolve, reject) => {
+      // Standard robust HTMLImageElement with async .decode()
+      // Browser retains image in memory and decodes without blocking main thread
+      return new Promise((resolve) => {
         if (signal?.aborted || isDestroyedRef.current) {
           return resolve(null);
         }
@@ -134,16 +122,24 @@ export function useFrameSequence({
               await img.decode();
             }
           } catch (_) {
-            // decode failure is non-fatal, image is still loaded
+            // decode failure is non-fatal
           }
 
+          // Store in both permanent map and LRU cache
+          framesMapRef.current.set(index, img);
           lruCacheRef.current?.set(index, img);
+
+          // If this was the frame the user is waiting to view, notify immediately
+          if (index === currentTargetFrameRef.current && onActiveFrameReadyRef.current) {
+            onActiveFrameReadyRef.current(index);
+          }
+
           resolve(img);
         };
 
-        img.onerror = (err) => {
+        img.onerror = () => {
           if (signal) signal.removeEventListener("abort", onAbort);
-          reject(err);
+          resolve(null);
         };
 
         img.src = url;
@@ -152,24 +148,24 @@ export function useFrameSequence({
     [getFrameUrl]
   );
 
-  // Schedule queue pump
+  // Schedule next queue pump
   const scheduleNextPump = useCallback(() => {
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      window.requestIdleCallback(() => processQueueRef.current?.(), { timeout: 100 });
+      window.requestIdleCallback(() => processQueueRef.current?.(), { timeout: 80 });
     } else {
       setTimeout(() => processQueueRef.current?.(), 16);
     }
   }, []);
 
-  // Pump queue worker
+  // Pump queue worker with concurrency control
   const processQueue = useCallback(() => {
     if (isDestroyedRef.current) return;
 
     while (inFlightCountRef.current < concurrency && queueRef.current.length > 0) {
       const index = queueRef.current.shift();
 
-      // Skip if already in cache or actively loading
-      if (lruCacheRef.current?.has(index) || activeRequestsRef.current.has(index)) {
+      // Skip if already in permanent storage or actively downloading
+      if (framesMapRef.current.has(index) || activeRequestsRef.current.has(index)) {
         continue;
       }
 
@@ -185,7 +181,7 @@ export function useFrameSequence({
           if (result && !isDestroyedRef.current) {
             loadedMaskRef.current[index] = 1;
 
-            // Recalculate progress
+            // Recalculate progress accurately
             let count = 0;
             let initialCount = 0;
             for (let i = 1; i <= totalFrames; i++) {
@@ -239,12 +235,12 @@ export function useFrameSequence({
       // Forward priority window
       for (let offset = 0; offset <= radius; offset++) {
         const forward = targetIndex + offset;
-        if (forward <= totalFrames && !loadedMaskRef.current[forward]) {
+        if (forward <= totalFrames && !framesMapRef.current.has(forward)) {
           priorityIndices.push(forward);
         }
         if (offset > 0) {
           const backward = targetIndex - offset;
-          if (backward >= 1 && !loadedMaskRef.current[backward]) {
+          if (backward >= 1 && !framesMapRef.current.has(backward)) {
             priorityIndices.push(backward);
           }
         }
@@ -261,15 +257,13 @@ export function useFrameSequence({
     [processQueue, totalFrames]
   );
 
-  // Initial load effect
+  // Initial load effect: enqueue all frames, initial 50 first
   useEffect(() => {
-    // 1. Initial batch: frames 1 to initialBatchSize
     const initialQueue = [];
     for (let i = 1; i <= initialBatchSize; i++) {
       initialQueue.push(i);
     }
 
-    // 2. Remaining frames: initialBatchSize + 1 to totalFrames
     const remainingQueue = [];
     for (let i = initialBatchSize + 1; i <= totalFrames; i++) {
       remainingQueue.push(i);
@@ -283,27 +277,28 @@ export function useFrameSequence({
     };
   }, [initialBatchSize, processQueue, totalFrames]);
 
-  // Access a frame from cache or retrieve fallback
+  // Access a frame from cache or permanent storage
   const getFrame = useCallback(
     (index) => {
-      if (!lruCacheRef.current) return null;
-      const frame = lruCacheRef.current.get(index);
-      if (!frame && !loadedMaskRef.current[index]) {
-        // Frame not loaded, prioritize it!
-        prioritizeFrames(index, 10);
+      // 1. Check permanent map first
+      if (framesMapRef.current.has(index)) {
+        return framesMapRef.current.get(index);
       }
-      return frame;
+      // 2. Check LRU cache
+      if (lruCacheRef.current?.has(index)) {
+        return lruCacheRef.current.get(index);
+      }
+      // If not present, prioritize loading it immediately
+      prioritizeFrames(index, 10);
+      return null;
     },
     [prioritizeFrames]
   );
 
   // Check if frame index is loaded
-  const isFrameLoaded = useCallback(
-    (index) => {
-      return Boolean(loadedMaskRef.current[index]);
-    },
-    []
-  );
+  const isFrameLoaded = useCallback((index) => {
+    return framesMapRef.current.has(index);
+  }, []);
 
   return {
     initialProgress,
