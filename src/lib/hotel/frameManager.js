@@ -148,6 +148,7 @@ export class FrameManager {
       this.onFirstFrameReadyCallback(existingPoster);
     }
 
+    this.emitProgress();
     this.processQueue();
   }
 
@@ -181,7 +182,10 @@ export class FrameManager {
       }
     }
 
-    if (chunkFrames.length === 0) return;
+    if (chunkFrames.length === 0) {
+      this.emitProgress();
+      return;
+    }
 
     // Sort frames: prioritize priorityFrame first, then radiate out in scroll direction
     const center = typeof priorityFrame === "number" ? priorityFrame : (direction > 0 ? startFrame : endFrame);
@@ -504,7 +508,7 @@ export class FrameManager {
     );
 
     const initialPercent = Math.min(100, Math.round((initialLoaded / initialBatch) * 100));
-    const isInitialReady = initialLoaded >= initialBatch;
+    const isInitialReady = initialLoaded >= initialBatch || (initialLoaded >= 20 && Boolean(this.cache.get(this.activeVariant, 1)));
 
     const { loadedCount: totalLoaded } = this.cache.getProgress(
       this.activeVariant,

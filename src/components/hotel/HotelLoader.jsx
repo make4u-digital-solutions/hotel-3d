@@ -4,22 +4,42 @@
  * HotelLoader Component
  *
  * Displays a luxury buffering preloader during initial frame caching.
- * Fades out smoothly when the required initial batch has loaded.
+ * Once the hero section loads, the percentage area and loader smoothly fade out
+ * and are completely unmounted and removed from the DOM.
  */
+
+import { useState, useEffect } from "react";
 
 export default function HotelLoader({
   isReady = false,
   progress = 0,
   loadedCount = 0,
-  targetBatch = 30,
+  targetBatch = 50,
   title = "The Grand Horizon",
   subtitle = "Curating Architectural Experience",
 }) {
+  const isDismissed = isReady || progress >= 100;
+  const [isRendered, setIsRendered] = useState(!isDismissed);
+
+  useEffect(() => {
+    if (isDismissed) {
+      const timer = setTimeout(() => {
+        setIsRendered(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDismissed]);
+
+  // After the hero section loads, do not show the percentage area or loader
+  if (!isRendered) {
+    return null;
+  }
+
   return (
     <div
-      aria-hidden={isReady}
-      className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 transition-all duration-700 ease-out select-none ${
-        isReady
+      aria-hidden={isDismissed}
+      className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 transition-all duration-500 ease-out select-none ${
+        isDismissed
           ? "opacity-0 pointer-events-none scale-105"
           : "opacity-100 scale-100"
       }`}
@@ -43,7 +63,7 @@ export default function HotelLoader({
           {subtitle}
         </p>
 
-        {/* Circular Progress Indicator */}
+        {/* Circular Progress Indicator (Percentage Area) */}
         <div className="relative w-36 h-36 flex items-center justify-center mb-6">
           <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
             <circle
@@ -62,7 +82,7 @@ export default function HotelLoader({
               className="text-amber-400 transition-all duration-300 ease-out"
               strokeWidth="4"
               strokeDasharray={2 * Math.PI * 44}
-              strokeDashoffset={2 * Math.PI * 44 * (1 - progress / 100)}
+              strokeDashoffset={2 * Math.PI * 44 * (1 - Math.min(100, progress) / 100)}
               strokeLinecap="round"
               stroke="currentColor"
               fill="transparent"
@@ -81,14 +101,12 @@ export default function HotelLoader({
         <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden mb-3 border border-zinc-700/50">
           <div
             className="h-full bg-gradient-to-r from-amber-500 to-amber-300 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${Math.min(100, progress)}%` }}
           />
         </div>
 
         <p className="text-[11px] text-zinc-400 font-mono">
-          {isReady
-            ? "Ready to explore"
-            : `Buffering initial frames ${Math.min(loadedCount, targetBatch)} / ${targetBatch}`}
+          Buffering initial frames {Math.min(loadedCount, targetBatch)} / {targetBatch}
         </p>
       </div>
     </div>

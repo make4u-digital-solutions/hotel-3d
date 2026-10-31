@@ -28,6 +28,7 @@ import HotelOverlay from "./HotelOverlay";
 import HotelNavbar from "./HotelNavbar";
 import HotelBookingWidget from "./HotelBookingWidget";
 import HotelSearchResultsModal from "./HotelSearchResultsModal";
+import HotelHomepage from "./HotelHomepage";
 import { HOTEL_SCENES, SEQUENCE_CONFIG } from "@/lib/hotel/config";
 import {
   getActiveSequenceConfig,
@@ -54,17 +55,20 @@ export default function HotelExperience({
   const [activeConfig, setActiveConfig] = useState(getActiveSequenceConfig);
 
   // Buffer and progress telemetry
-  const [telemetry, setTelemetry] = useState({
-    variant: activeConfig.id,
-    currentFrame: 1,
-    currentChunk: 1,
-    totalChunks: Math.ceil(activeConfig.totalFrames / 50),
-    totalLoaded: 0,
-    initialLoaded: 0,
-    initialPercent: 0,
-    isInitialReady: false,
-    activeChunks: [1],
-    direction: 1,
+  const [telemetry, setTelemetry] = useState(() => {
+    const isCached = defaultFrameCache.has(activeConfig.id, 1);
+    return {
+      variant: activeConfig.id,
+      currentFrame: 1,
+      currentChunk: 1,
+      totalChunks: Math.ceil(activeConfig.totalFrames / 50),
+      totalLoaded: isCached ? 50 : 0,
+      initialLoaded: isCached ? 50 : 0,
+      initialPercent: isCached ? 100 : 0,
+      isInitialReady: isCached,
+      activeChunks: [1],
+      direction: 1,
+    };
   });
 
   // Strict tracking of requested and rendered frames
@@ -152,6 +156,11 @@ export default function HotelExperience({
     if (existingPoster && canvasComponentRef.current) {
       canvasComponentRef.current.renderImmediate(existingPoster);
       lastRenderedFrameRef.current = 1;
+      setTelemetry((prev) => ({
+        ...prev,
+        isInitialReady: true,
+        initialPercent: 100,
+      }));
     }
 
     return () => {
@@ -283,17 +292,30 @@ export default function HotelExperience({
 
   const handleNavClick = (link) => {
     if (link.label === "Rooms & Suites") {
-      setIsSearchModalOpen(true);
+      const el = document.getElementById("rooms-and-suites");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      } else {
+        setIsSearchModalOpen(true);
+      }
     } else if (link.label === "Home") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (link.label === "Experiences") {
-      handleJumpToSection(HOTEL_SCENES[1]);
+      const el = document.getElementById("experiences");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      else handleJumpToSection(HOTEL_SCENES[1]);
     } else if (link.label === "Dining") {
-      handleJumpToSection(HOTEL_SCENES[3]);
+      const el = document.getElementById("dining");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      else handleJumpToSection(HOTEL_SCENES[3]);
     } else if (link.label === "About Us") {
-      handleJumpToSection(HOTEL_SCENES[0]);
+      const el = document.getElementById("about");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      else handleJumpToSection(HOTEL_SCENES[0]);
     } else if (link.label === "Contact") {
-      setIsSearchModalOpen(true);
+      const el = document.getElementById("contact");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+      else setIsSearchModalOpen(true);
     }
   };
 
@@ -301,22 +323,25 @@ export default function HotelExperience({
     (telemetry.currentFrame - 1) / Math.max(1, activeConfig.totalFrames - 1);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full bg-zinc-950"
-      style={{ height: scrollDistance }}
-    >
+    <div className="relative w-full bg-[#FAF8F5]">
       {/* Light-theme Luxury Hotel Navbar */}
       <HotelNavbar
         onBookNowClick={handleBookNowNavbar}
         onNavClick={handleNavClick}
       />
 
-      {/* Pinned Viewport Container (Locked by GSAP ScrollTrigger) */}
+      {/* Hero Animated Walkthrough Pin Section */}
       <div
-        ref={pinnedRef}
-        className="w-full h-screen overflow-hidden flex flex-col justify-between items-center relative select-none"
+        ref={containerRef}
+        id="home"
+        className="relative w-full bg-zinc-950"
+        style={{ height: scrollDistance }}
       >
+        {/* Pinned Viewport Container (Locked by GSAP ScrollTrigger) */}
+        <div
+          ref={pinnedRef}
+          className="w-full h-screen overflow-hidden flex flex-col justify-between items-center relative select-none"
+        >
         {/* HTML5 Reusable Canvas */}
         <HotelCanvas
           ref={canvasComponentRef}
@@ -346,39 +371,35 @@ export default function HotelExperience({
           scrollProgress={normalizedProgress}
         />
 
-        {/* Top-Right Progressive Telemetry Badge */}
-        <div className="absolute top-16 sm:top-20 right-4 sm:right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
-          <div className="flex items-center gap-2.5 bg-zinc-950/75 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800 text-xs font-mono shadow-xl">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                telemetry.isInitialReady
-                  ? "bg-emerald-400"
-                  : "bg-amber-400 animate-pulse"
-              }`}
-            />
-            <span className="text-zinc-200 uppercase font-semibold">
-              {telemetry.variant}
-            </span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-amber-300">
-              Frame {String(telemetry.currentFrame).padStart(3, "0")} /{" "}
-              {String(activeConfig.totalFrames).padStart(3, "0")}
-            </span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-cyan-300">
-              Chunk {telemetry.currentChunk} of {telemetry.totalChunks}
-            </span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-emerald-400">
-              {telemetry.totalLoaded} Cached
-            </span>
-          </div>
+        {/* Top-Right Progressive Telemetry Badge (Hidden after hero section loads) */}
+        {!telemetry.isInitialReady && (
+          <div className="absolute top-16 sm:top-20 right-4 sm:right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2.5 bg-zinc-950/75 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800 text-xs font-mono shadow-xl">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-zinc-200 uppercase font-semibold">
+                {telemetry.variant}
+              </span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-amber-300">
+                Frame {String(telemetry.currentFrame).padStart(3, "0")} /{" "}
+                {String(activeConfig.totalFrames).padStart(3, "0")}
+              </span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-cyan-300">
+                Chunk {telemetry.currentChunk} of {telemetry.totalChunks}
+              </span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-emerald-400">
+                {telemetry.totalLoaded} Cached
+              </span>
+            </div>
 
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-950/60 px-3 py-1 rounded-full border border-zinc-800/60">
-            <span>Direction: {telemetry.direction > 0 ? "↓ Forward" : "↑ Reverse"}</span>
-            <span>· Active Chunks: [{telemetry.activeChunks.join(", ")}]</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-950/60 px-3 py-1 rounded-full border border-zinc-800/60">
+              <span>Direction: {telemetry.direction > 0 ? "↓ Forward" : "↑ Reverse"}</span>
+              <span>· Active Chunks: [{telemetry.activeChunks.join(", ")}]</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Floating Quick Perspective Navigation (for Distant Jumps) */}
         <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30 hidden lg:flex flex-col gap-2 pointer-events-auto">
@@ -429,7 +450,14 @@ export default function HotelExperience({
             {String(activeConfig.totalFrames).padStart(3, "0")}
           </span>
         </div>
+        </div>
       </div>
+
+      {/* Complete Premium Hotel Homepage Below Hero */}
+      <HotelHomepage
+        onBookClick={handleBookNowNavbar}
+        onViewSuiteDetails={handleOpenSearch}
+      />
 
       {/* Hotel Suite Search Results & Concierge Inquiry Modal */}
       <HotelSearchResultsModal

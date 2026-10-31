@@ -76,9 +76,9 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
 
   return (
     <>
-      <header className="fixed top-2.5 sm:top-3.5 inset-x-0 z-50 px-3 sm:px-6 pointer-events-none">
+      <header className="fixed top-2.5 sm:top-3.5 inset-x-0 z-50 px-3 sm:px-6 lg:px-8 pointer-events-none">
         <nav
-          className={`max-w-6xl mx-auto rounded-full transition-all duration-400 ease-out pointer-events-auto px-5 sm:px-7 py-1.5 sm:py-2 flex items-center justify-between border ${
+          className={`w-full max-w-7xl mx-auto rounded-full transition-all duration-400 ease-out pointer-events-auto px-5 sm:px-8 py-2 sm:py-2.5 flex items-center justify-between border ${
             isScrolled
               ? "bg-zinc-950/95 backdrop-blur-2xl border-white/[0.18] shadow-[0_8px_32px_rgba(0,0,0,0.85)]"
               : "bg-zinc-950/80 backdrop-blur-xl border-white/[0.12] shadow-[0_6px_24px_rgba(0,0,0,0.65)]"
@@ -88,7 +88,7 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
           <a
             href="#home"
             onClick={(e) => handleLinkClick(e, { label: "Home", href: "#home" })}
-            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-full py-0.5"
+            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-full py-0.5 shrink-0"
           >
             {/* Minimalist Crest Emblem */}
             <div className="w-7 h-7 rounded-full border border-amber-400/50 flex items-center justify-center bg-zinc-900/90 shadow-sm group-hover:border-amber-300 group-hover:scale-105 transition-all">
@@ -113,39 +113,30 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
             </div>
           </a>
 
-          {/* Center: Desktop Navigation Links with Generous Gapping */}
-          <div className="hidden lg:flex items-center gap-7 xl:gap-9">
+          {/* Center: Desktop Navigation Links (with space before Home & Single Line items) */}
+          <div className="hidden lg:flex items-center gap-6 xl:gap-9 ml-8 lg:ml-12 xl:ml-16 shrink-0">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 onClick={(e) => handleLinkClick(e, link)}
-                className="relative text-[11px] xl:text-xs tracking-[0.16em] uppercase text-zinc-300 hover:text-amber-300 font-medium transition-colors duration-200 py-1 group px-1"
+                className="relative text-[11px] xl:text-xs tracking-[0.14em] xl:tracking-[0.16em] uppercase text-zinc-300 hover:text-amber-300 font-medium transition-colors duration-200 py-1 group px-1 whitespace-nowrap select-none"
               >
-                <span>{link.label}</span>
+                <span className="whitespace-nowrap">{link.label}</span>
                 <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-amber-400 transition-all duration-200 group-hover:w-full" />
               </a>
             ))}
           </div>
 
-          {/* Right: Actions with Proper Spacing */}
-          <div className="flex items-center gap-3.5 sm:gap-5">
-            {/* Direct Phone (Desktop) */}
-            <a
-              href="tel:+18005554321"
-              className="hidden xl:flex items-center gap-2 text-[10px] font-mono text-zinc-400 hover:text-amber-300 transition-colors px-1 py-1"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span>+1 (800) 555-4321</span>
-            </a>
-
+          {/* Right: Actions (Phone number removed, prominent Book Now button) */}
+          <div className="flex items-center gap-3 shrink-0">
             {/* Amber Gold "Book Now" CTA */}
             <motion.button
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleBookClick}
-              className="px-4.5 py-1.5 sm:px-5 sm:py-1.5 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-[10px] sm:text-[11px] font-mono font-semibold tracking-[0.16em] uppercase transition-all duration-300 shadow-md shadow-amber-400/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="px-4.5 py-1.5 sm:px-5 sm:py-2 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-[10px] sm:text-[11px] font-mono font-semibold tracking-[0.16em] uppercase transition-all duration-300 shadow-md shadow-amber-400/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <span>Book Now</span>
               <span className="text-xs font-bold">→</span>
@@ -230,7 +221,7 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
                     onClick={(e) => handleLinkClick(e, link)}
                     className="py-2.5 text-xs font-mono tracking-[0.16em] uppercase text-zinc-200 hover:text-amber-300 flex items-center justify-between transition-colors"
                   >
-                    <span>{link.label}</span>
+                    <span className="whitespace-nowrap">{link.label}</span>
                     <span className="text-zinc-500">→</span>
                   </motion.a>
                 ))}
