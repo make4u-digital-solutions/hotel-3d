@@ -1,0 +1,1 @@
+export { useResponsiveFrameSequence } from "./useResponsiveFrameSequence";
