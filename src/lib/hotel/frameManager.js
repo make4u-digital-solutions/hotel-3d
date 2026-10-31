@@ -126,10 +126,16 @@ export class FrameManager {
     this.activeVariant = sequenceConfig.id;
     this.activeConfig = sequenceConfig;
 
+    // Apply device-tailored chunking and concurrency from sequenceConfig
+    if (sequenceConfig.chunkSize) this.chunkSize = sequenceConfig.chunkSize;
+    if (sequenceConfig.concurrency) this.concurrency = sequenceConfig.concurrency;
+    if (sequenceConfig.prefetchThreshold) this.prefetchThreshold = sequenceConfig.prefetchThreshold;
+
     // Reset queue and chunk tracking
     this.queue = [];
     this.queueSet.clear();
     this.requestedChunks.clear();
+
     // Reset navigation context on FrameCache
     if (typeof this.cache.setNavigationContext === "function") {
       this.cache.setNavigationContext({
@@ -139,14 +145,10 @@ export class FrameManager {
       });
     }
 
-    // Step 1: Enqueue Chunk 1 (Frames 1 to 50) with priority
+    // Enqueue Chunk 1 only (progressive initial batch)
+    // Mobile: 15-20 frames (~120-160MB). Desktop: 25-35 frames.
+    // Subsequent chunks are fetched on-demand via sliding-window scroll prefetch.
     this.enqueueChunk(1, { priorityFrame: 1, direction: 1 });
-
-    // Step 2: Enqueue all remaining chunks (Chunks 2, 3, 4: frames 51 to totalFrames)
-    // behind Chunk 1 so that the entire sequence loads and caches into memory in the background
-    for (let c = 2; c <= this.totalChunks; c++) {
-      this.enqueueChunk(c, { direction: 1, prepend: false });
-    }
 
     // If poster (frame 1) is already cached, notify immediately
     const existingPoster = this.cache.get(this.activeVariant, 1);
@@ -505,14 +507,19 @@ export class FrameManager {
   emitProgress() {
     if (!this.activeConfig) return;
 
-    const initialBatch = Math.min(this.chunkSize, this.activeConfig.totalFrames);
+    const initialBatch =
+      this.activeConfig.initialBatchSize ||
+      Math.min(this.chunkSize, this.activeConfig.totalFrames);
     const { loadedCount: initialLoaded } = this.cache.getProgress(
       this.activeVariant,
       initialBatch
     );
 
     const initialPercent = Math.min(100, Math.round((initialLoaded / initialBatch) * 100));
-    const isInitialReady = initialLoaded >= initialBatch || (initialLoaded >= 20 && Boolean(this.cache.get(this.activeVariant, 1)));
+    // Ready when initial progressive batch completes or at least 10 frames + poster ready
+    const isInitialReady =
+      initialLoaded >= initialBatch ||
+      (initialLoaded >= 10 && Boolean(this.cache.get(this.activeVariant, 1)));
 
     const { loadedCount: totalLoaded } = this.cache.getProgress(
       this.activeVariant,

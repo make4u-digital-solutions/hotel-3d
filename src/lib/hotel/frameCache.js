@@ -19,9 +19,30 @@
  * @returns {number} Target frame capacity (100–150)
  */
 export function getOptimalCacheCapacity(variant = "desktop") {
-  // Allow all 190 frames for both desktop and mobile to remain permanently cached in memory
-  // 190 WebP frames consume ~10-15MB RAM which easily fits in any modern browser/mobile device
-  return 250;
+  const isMobile =
+    variant === "mobile" ||
+    (typeof window !== "undefined" && window.innerWidth <= 768);
+
+  const deviceMemory =
+    typeof navigator !== "undefined" && "deviceMemory" in navigator
+      ? Number(navigator.deviceMemory)
+      : null;
+
+  if (isMobile) {
+    // 1080x1920 WebP decoded RGBA is ~8.29MB per frame.
+    // Android Chrome tab crashes at ~350-500MB heap limit.
+    // Keep max 18-24 frames in memory (~150-199MB), well below the OOM threshold.
+    if (deviceMemory !== null && deviceMemory <= 3) {
+      return 18;
+    }
+    return 24;
+  }
+
+  // Desktop (1920x1080 = 8.29MB per frame)
+  if (deviceMemory !== null && deviceMemory <= 4) {
+    return 50; // ~415MB
+  }
+  return 85; // ~700MB (safe on modern desktop)
 }
 
 /**
@@ -32,7 +53,7 @@ export function getOptimalCacheCapacity(variant = "desktop") {
 export function releaseImageResource(image) {
   if (!image) return;
 
-  // 1. Explicitly close ImageBitmap if applicable
+  // 1. Explicitly close ImageBitmap to immediately reclaim GPU texture memory
   if (typeof image.close === "function") {
     try {
       image.close();
@@ -50,13 +71,13 @@ export function releaseImageResource(image) {
 export class FrameCache {
   /**
    * @param {Object} [options]
-   * @param {number} [options.maxCapacity] - Maximum frames before LRU eviction (100–150)
-   * @param {number} [options.chunkSize=50] - Number of frames per chunk
+   * @param {number} [options.maxCapacity] - Maximum frames before LRU eviction
+   * @param {number} [options.chunkSize=35] - Number of frames per chunk
    * @param {('desktop'|'mobile')} [options.variant='desktop']
    */
   constructor({
     maxCapacity = null,
-    chunkSize = 50,
+    chunkSize = 35,
     variant = "desktop",
   } = {}) {
     this.chunkSize = chunkSize;
@@ -74,7 +95,7 @@ export class FrameCache {
     // Navigation context for active-chunk eviction protection
     this.activeFrame = 1;
     this.activeChunk = 1;
-    this.protectedRadius = Math.min(25, Math.floor(this.chunkSize / 2));
+    this.protectedRadius = Math.min(8, Math.floor(this.chunkSize / 3));
   }
 
   /**
@@ -135,11 +156,22 @@ export class FrameCache {
    * @returns {boolean}
    */
   isProtected(variant, index) {
-    // Keep all loaded frames for the currently active device variant permanently in memory
-    if (variant === this.variant) return true;
+    // Only protect frames for the currently active variant
+    if (variant !== this.variant) return false;
 
-    // Poster frame of any variant is always preserved
+    // Always keep frame 1 (poster frame) in memory for instant return to top
     if (index === 1) return true;
+
+    // Protect active frame immediate neighborhood (current frame ± radius)
+    if (Math.abs(index - this.activeFrame) <= this.protectedRadius) {
+      return true;
+    }
+
+    // Protect active chunk frames
+    const frameChunk = Math.floor((index - 1) / this.chunkSize) + 1;
+    if (frameChunk === this.activeChunk) {
+      return true;
+    }
 
     return false;
   }
@@ -184,6 +216,10 @@ export class FrameCache {
     const key = this.getKey(variant, index);
 
     if (this.cache.has(key)) {
+      const existing = this.cache.get(key);
+      if (existing !== image) {
+        releaseImageResource(existing);
+      }
       this.cache.delete(key);
     }
 
@@ -199,7 +235,7 @@ export class FrameCache {
   /**
    * Evicts candidate frames that are not protected by the active navigation window.
    * Prioritizes oldest accessed entries outside of active and nearby chunks.
-   * Does NOT sacrifice rendering stability if all frames are currently protected.
+   * Releases ImageBitmap textures immediately to prevent memory leaks and OOM crashes.
    */
   evictUnprotected() {
     const targetEvictions = this.cache.size - this.maxCapacity;
@@ -208,13 +244,25 @@ export class FrameCache {
     let evictedCount = 0;
     const candidates = [];
 
-    // Iterate in LRU order (oldest accessed first)
+    // 1. First priority: evict any frames from inactive variants
     for (const [key] of this.cache) {
       const { variant, index } = this.parseKey(key);
-      if (!this.isProtected(variant, index)) {
+      if (variant !== this.variant && index !== 1) {
         candidates.push({ key, variant, index });
         evictedCount++;
         if (evictedCount >= targetEvictions) break;
+      }
+    }
+
+    // 2. Second priority: evict oldest unprotected frames in LRU order
+    if (evictedCount < targetEvictions) {
+      for (const [key] of this.cache) {
+        const { variant, index } = this.parseKey(key);
+        if (!this.isProtected(variant, index) && !candidates.some((c) => c.key === key)) {
+          candidates.push({ key, variant, index });
+          evictedCount++;
+          if (evictedCount >= targetEvictions) break;
+        }
       }
     }
 

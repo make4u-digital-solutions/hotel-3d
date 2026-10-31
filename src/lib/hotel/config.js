@@ -22,11 +22,17 @@ export { BREAKPOINT_MOBILE_MAX, FRAME_MANIFEST, getFrameUrlFromManifest, getMani
 export const SEQUENCE_CONFIG = {
   desktop: {
     ...FRAME_MANIFEST.desktop,
-    initialBatchSize: 50,
+    chunkSize: 35,
+    initialBatchSize: 25,
+    concurrency: 4,
+    prefetchThreshold: 12,
   },
   mobile: {
     ...FRAME_MANIFEST.mobile,
-    initialBatchSize: 50,
+    chunkSize: 20,
+    initialBatchSize: 15,
+    concurrency: 2,
+    prefetchThreshold: 8,
   },
 };
 

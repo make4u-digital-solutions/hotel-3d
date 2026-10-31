@@ -30,14 +30,31 @@ export class CanvasRenderer {
     if (!this.canvas) return { width: 0, height: 0, dpr: 1 };
 
     const rect = this.canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth <= 768 || (window.screen && window.screen.width <= 768));
+
+    const deviceMemory =
+      typeof navigator !== "undefined" && "deviceMemory" in navigator
+        ? Number(navigator.deviceMemory)
+        : null;
+
+    // Mobile DPR cap: 1.25 on low-memory mobile, 1.5 on standard mobile, 2.0 on desktop
+    const maxDpr = isMobile ? (deviceMemory !== null && deviceMemory <= 3 ? 1.0 : 1.5) : 2.0;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
     this.displayWidth = rect.width;
     this.displayHeight = rect.height;
     this.currentDpr = dpr;
 
-    const physicalWidth = Math.round(rect.width * dpr);
-    const physicalHeight = Math.round(rect.height * dpr);
+    let physicalWidth = Math.round(rect.width * dpr);
+    let physicalHeight = Math.round(rect.height * dpr);
+
+    // Clamp dimensions to source frame resolution (1080x1920 mobile, 1920x1080 desktop)
+    const maxNativeWidth = isMobile ? 1080 : 1920;
+    const maxNativeHeight = isMobile ? 1920 : 1080;
+    physicalWidth = Math.min(physicalWidth, maxNativeWidth);
+    physicalHeight = Math.min(physicalHeight, maxNativeHeight);
 
     if (
       physicalWidth > 0 &&
@@ -55,7 +72,7 @@ export class CanvasRenderer {
    * Draws an image into the canvas context using 'cover' aspect ratio geometry.
    * Ensures the image fully fills the viewport without stretching or distortion.
    *
-   * @param {HTMLImageElement} image
+   * @param {HTMLImageElement|ImageBitmap} image
    */
   drawCover(image) {
     if (!this.ctx || !image) return;
@@ -82,17 +99,21 @@ export class CanvasRenderer {
     const dx = (canvasWidth - scaledWidth) / 2;
     const dy = (canvasHeight - scaledHeight) / 2;
 
-    this.ctx.drawImage(
-      image,
-      0,
-      0,
-      imageWidth,
-      imageHeight,
-      dx,
-      dy,
-      scaledWidth,
-      scaledHeight
-    );
+    try {
+      this.ctx.drawImage(
+        image,
+        0,
+        0,
+        imageWidth,
+        imageHeight,
+        dx,
+        dy,
+        scaledWidth,
+        scaledHeight
+      );
+    } catch (_) {
+      // Safely ignore if ImageBitmap was closed concurrently
+    }
   }
 
   /**

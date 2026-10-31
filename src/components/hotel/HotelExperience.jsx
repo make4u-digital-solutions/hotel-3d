@@ -21,7 +21,7 @@
  * - Automatic animation after page load
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import HotelCanvas from "./HotelCanvas";
 import HotelLoader from "./HotelLoader";
 import HotelOverlay from "./HotelOverlay";
@@ -31,7 +31,8 @@ import HotelSearchResultsModal from "./HotelSearchResultsModal";
 import HotelHomepage from "./HotelHomepage";
 import { HOTEL_SCENES, SEQUENCE_CONFIG } from "@/lib/hotel/config";
 import {
-  getActiveSequenceConfig,
+  getDeviceVariantClientSnapshot,
+  getDeviceVariantServerSnapshot,
   subscribeDeviceChange,
 } from "@/lib/hotel/deviceDetector";
 import { defaultFrameCache } from "@/lib/hotel/frameCache";
@@ -56,15 +57,21 @@ export default function HotelExperience({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useState(null);
 
-  // Active configuration (desktop or mobile)
-  const [activeConfig, setActiveConfig] = useState(getActiveSequenceConfig);
+  // Active configuration (desktop or mobile) synchronized via external store
+  const activeVariant = useSyncExternalStore(
+    subscribeDeviceChange,
+    getDeviceVariantClientSnapshot,
+    getDeviceVariantServerSnapshot
+  );
+  const activeConfig = SEQUENCE_CONFIG[activeVariant];
 
-  // Initial buffer telemetry (ONLY used for the initial 50-frame preloader)
+  // Initial buffer telemetry (ONLY used for the initial preloader)
   const [telemetry, setTelemetry] = useState(() => {
     const isCached = defaultFrameCache.has(activeConfig.id, 1);
+    const initialBatch = activeConfig.initialBatchSize || 20;
     return {
       variant: activeConfig.id,
-      initialLoaded: isCached ? 50 : 0,
+      initialLoaded: isCached ? initialBatch : 0,
       initialPercent: isCached ? 100 : 0,
       isInitialReady: isCached,
     };
@@ -102,13 +109,14 @@ export default function HotelExperience({
     }
   }, [activeConfig.id]);
 
-  // Initialize FrameManager with concurrency 8 and full sequence preloading
+  // Initialize FrameManager with device-adaptive parameters
   useEffect(() => {
+    const isMobile = activeConfig.id === "mobile";
     const frameManager = new FrameManager({
       cache: defaultFrameCache,
-      concurrency: 8,
-      chunkSize: 50,
-      prefetchThreshold: 15,
+      concurrency: activeConfig.concurrency || (isMobile ? 2 : 4),
+      chunkSize: activeConfig.chunkSize || (isMobile ? 20 : 35),
+      prefetchThreshold: activeConfig.prefetchThreshold || (isMobile ? 8 : 12),
     });
 
     // Display initial poster (Frame 1) immediately once decoded
@@ -223,23 +231,19 @@ export default function HotelExperience({
   }, [activeConfig.totalFrames, renderTargetOrFallback]);
 
   // Handle responsive device breakpoint transitions (desktop <-> mobile)
+  const prevVariantRef = useRef(activeVariant);
   useEffect(() => {
-    const unsubscribe = subscribeDeviceChange((nextVariant) => {
-      const newConfig = SEQUENCE_CONFIG[nextVariant];
-
-      // Purge previous variant memory cache
-      defaultFrameCache.clear(activeConfig.id);
-
-      setActiveConfig(newConfig);
+    if (prevVariantRef.current !== activeVariant) {
+      // Purge previous variant memory cache and close ImageBitmaps
+      defaultFrameCache.clear(prevVariantRef.current);
+      prevVariantRef.current = activeVariant;
 
       if (scrollControllerRef.current) {
-        scrollControllerRef.current.updateTotalFrames(newConfig.totalFrames);
+        scrollControllerRef.current.updateTotalFrames(activeConfig.totalFrames);
         scrollControllerRef.current.refresh();
       }
-    });
-
-    return unsubscribe;
-  }, [activeConfig.id]);
+    }
+  }, [activeVariant, activeConfig.totalFrames]);
 
   // Handle canvas resize: redraw current frame synchronously
   const handleCanvasResize = useCallback(() => {
@@ -349,12 +353,12 @@ export default function HotelExperience({
           onResize={handleCanvasResize}
         />
 
-        {/* Loading Indicator for Initial 50 Frames (Chunk 1) */}
+        {/* Loading Indicator for Initial Frames */}
         <HotelLoader
           isReady={telemetry.isInitialReady}
           progress={telemetry.initialPercent}
           loadedCount={telemetry.initialLoaded}
-          targetBatch={50}
+          targetBatch={activeConfig.initialBatchSize || 20}
           title={title}
           subtitle={subtitle}
         />
