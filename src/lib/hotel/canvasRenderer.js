@@ -39,7 +39,11 @@ export class CanvasRenderer {
     const physicalWidth = Math.round(rect.width * dpr);
     const physicalHeight = Math.round(rect.height * dpr);
 
-    if (this.canvas.width !== physicalWidth || this.canvas.height !== physicalHeight) {
+    if (
+      physicalWidth > 0 &&
+      physicalHeight > 0 &&
+      (this.canvas.width !== physicalWidth || this.canvas.height !== physicalHeight)
+    ) {
       this.canvas.width = physicalWidth;
       this.canvas.height = physicalHeight;
     }
@@ -49,27 +53,32 @@ export class CanvasRenderer {
 
   /**
    * Draws an image into the canvas context using 'cover' aspect ratio geometry.
-   * Ensures the image fully fills the viewport without stretching or borders.
+   * Ensures the image fully fills the viewport without stretching or distortion.
    *
    * @param {HTMLImageElement} image
    */
   drawCover(image) {
     if (!this.ctx || !image) return;
 
+    // Ensure canvas dimensions match container if not yet measured
+    if (!this.canvas.width || !this.canvas.height) {
+      this.resize();
+    }
+
     const canvasWidth = this.canvas.width;
     const canvasHeight = this.canvas.height;
     const imageWidth = image.naturalWidth || image.width;
     const imageHeight = image.naturalHeight || image.height;
 
-    if (!imageWidth || !imageHeight) return;
+    if (!imageWidth || !imageHeight || !canvasWidth || !canvasHeight) return;
 
-    // Calculate scale factor to cover canvas
+    // Calculate scale factor to cover canvas completely without letterboxing
     const scale = Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight);
 
     const scaledWidth = imageWidth * scale;
     const scaledHeight = imageHeight * scale;
 
-    // Center offset
+    // Center image within canvas viewport
     const dx = (canvasWidth - scaledWidth) / 2;
     const dy = (canvasHeight - scaledHeight) / 2;
 
@@ -84,6 +93,21 @@ export class CanvasRenderer {
       scaledWidth,
       scaledHeight
     );
+  }
+
+  /**
+   * Synchronously draws the image immediately (ideal for instant poster render).
+   *
+   * @param {HTMLImageElement} image
+   */
+  renderImmediate(image) {
+    if (!image) return;
+    this.pendingImage = null;
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.drawCover(image);
   }
 
   /**

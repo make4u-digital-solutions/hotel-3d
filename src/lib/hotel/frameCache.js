@@ -1,22 +1,109 @@
 /**
- * Frame Cache Module
+ * Memory-Managed Frame Cache Module
  *
- * Provides dedicated memory storage for decoded Image instances across
- * desktop and mobile variants. Prevents duplicate network downloads,
- * provides instant O(1) frame retrieval during scroll scrubbing,
- * and maintains loaded bitmasks for progress calculation.
+ * Implements an intelligent LRU cache with active-chunk awareness:
+ * 1. Maintains LRU access order for all decoded frames.
+ * 2. Targets 100–150 decoded frames with device capability detection (RAM & mobile).
+ * 3. Keeps active chunk and nearby chunks (currentChunk ± 1) protected from eviction.
+ * 4. Preserves poster frame (Frame 1) for instant return to top.
+ * 5. Properly releases references and closes ImageBitmap resources upon eviction.
+ * 6. Guarantees smooth reverse scrolling by preserving preceding chunks.
+ * 7. Never sacrifices rendering stability to meet a rigid threshold.
  */
+
+/**
+ * Computes optimal frame cache capacity targeting 100–150 frames
+ * based on device memory and hardware characteristics.
+ *
+ * @param {('desktop'|'mobile')} [variant='desktop']
+ * @returns {number} Target frame capacity (100–150)
+ */
+export function getOptimalCacheCapacity(variant = "desktop") {
+  if (typeof window === "undefined") {
+    return 130;
+  }
+
+  // Check hardware memory API (RAM in GB) if available
+  const deviceMemory =
+    typeof navigator !== "undefined" && "deviceMemory" in navigator
+      ? Number(navigator.deviceMemory)
+      : null;
+
+  // Check CPU cores
+  const hardwareConcurrency =
+    typeof navigator !== "undefined" && "hardwareConcurrency" in navigator
+      ? Number(navigator.hardwareConcurrency)
+      : 4;
+
+  const isMobile =
+    variant === "mobile" ||
+    (typeof window !== "undefined" && window.innerWidth <= 768);
+
+  // Low memory device (<= 4GB RAM or low core mobile)
+  if (isMobile || (deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 2) {
+    return 100;
+  }
+
+  // High-performance desktop (>= 8GB RAM and >= 8 cores)
+  if (!isMobile && deviceMemory !== null && deviceMemory >= 8 && hardwareConcurrency >= 8) {
+    return 150;
+  }
+
+  // Balanced default within 100–150 range
+  return 130;
+}
+
+/**
+ * Safely releases an image resource, closing ImageBitmaps and dropping DOM references.
+ *
+ * @param {HTMLImageElement|ImageBitmap|Object} image
+ */
+export function releaseImageResource(image) {
+  if (!image) return;
+
+  // 1. Explicitly close ImageBitmap if applicable
+  if (typeof image.close === "function") {
+    try {
+      image.close();
+    } catch (_) {}
+  }
+
+  // 2. Clear HTMLImageElement source to release browser GPU texture memory
+  if ("src" in image && typeof image.src === "string") {
+    try {
+      image.src = "";
+    } catch (_) {}
+  }
+}
 
 export class FrameCache {
   /**
-   * @param {number} [maxCapacity=400] Optional max frames before eviction (0 = unbounded)
+   * @param {Object} [options]
+   * @param {number} [options.maxCapacity] - Maximum frames before LRU eviction (100–150)
+   * @param {number} [options.chunkSize=50] - Number of frames per chunk
+   * @param {('desktop'|'mobile')} [options.variant='desktop']
    */
-  constructor(maxCapacity = 400) {
-    this.maxCapacity = maxCapacity;
-    /** @type {Map<string, HTMLImageElement>} */
+  constructor({
+    maxCapacity = null,
+    chunkSize = 50,
+    variant = "desktop",
+  } = {}) {
+    this.chunkSize = chunkSize;
+    this.variant = variant;
+    this.maxCapacity =
+      typeof maxCapacity === "number" && maxCapacity > 0
+        ? maxCapacity
+        : getOptimalCacheCapacity(variant);
+
+    /** @type {Map<string, HTMLImageElement|ImageBitmap>} Keyed by 'variant:index' */
     this.cache = new Map();
-    /** @type {Map<string, Uint8Array>} */
+    /** @type {Map<string, Uint8Array>} Bitmask of currently loaded frames */
     this.variantMasks = new Map();
+
+    // Navigation context for active-chunk eviction protection
+    this.activeFrame = 1;
+    this.activeChunk = 1;
+    this.protectedRadius = Math.min(25, Math.floor(this.chunkSize / 2));
   }
 
   /**
@@ -24,10 +111,77 @@ export class FrameCache {
    *
    * @param {string} variant - 'desktop' | 'mobile'
    * @param {number} index - 1-based frame index
-   * @returns {string} Composite cache key
+   * @returns {string}
    */
   getKey(variant, index) {
     return `${variant}:${index}`;
+  }
+
+  /**
+   * Parses variant and frame index from a composite key.
+   *
+   * @param {string} key
+   * @returns {{ variant: string, index: number }}
+   */
+  parseKey(key) {
+    const colonIdx = key.indexOf(":");
+    return {
+      variant: key.slice(0, colonIdx),
+      index: Number(key.slice(colonIdx + 1)),
+    };
+  }
+
+  /**
+   * Updates navigation context to protect active and nearby chunks from eviction.
+   *
+   * @param {Object} context
+   * @param {number} context.activeFrame - Current frame visitor is viewing
+   * @param {number} context.activeChunk - Current chunk visitor is inside
+   * @param {string} [context.variant] - Active device variant
+   */
+  setNavigationContext({ activeFrame, activeChunk, variant }) {
+    if (typeof activeFrame === "number") this.activeFrame = activeFrame;
+    if (typeof activeChunk === "number") this.activeChunk = activeChunk;
+    if (variant) {
+      if (this.variant !== variant) {
+        this.variant = variant;
+        // Re-adjust capacity for the new variant
+        this.maxCapacity = getOptimalCacheCapacity(variant);
+      }
+    }
+  }
+
+  /**
+   * Evaluates whether a frame is protected from eviction.
+   * Protected frames include:
+   * - Poster frame (Frame 1)
+   * - Active chunk frames
+   * - Adjacent chunk frames (activeChunk - 1 and activeChunk + 1)
+   * - Immediate neighborhood (activeFrame ± protectedRadius)
+   *
+   * @param {string} variant
+   * @param {number} index
+   * @returns {boolean}
+   */
+  isProtected(variant, index) {
+    // Only protect frames for the currently active variant
+    if (variant !== this.variant) return false;
+
+    // Always keep frame 1 (poster frame) in memory
+    if (index === 1) return true;
+
+    // Protect active frame neighborhood
+    if (Math.abs(index - this.activeFrame) <= this.protectedRadius) {
+      return true;
+    }
+
+    // Protect active chunk and adjacent chunks (currentChunk ± 1)
+    const frameChunk = Math.floor((index - 1) / this.chunkSize) + 1;
+    if (Math.abs(frameChunk - this.activeChunk) <= 1) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -42,49 +196,95 @@ export class FrameCache {
   }
 
   /**
-   * Retrieves a frame from the cache. Updates LRU access order.
+   * Retrieves a frame and updates its position in LRU order.
    *
    * @param {string} variant
    * @param {number} index
-   * @returns {HTMLImageElement|null}
+   * @returns {HTMLImageElement|ImageBitmap|null}
    */
   get(variant, index) {
     const key = this.getKey(variant, index);
     const item = this.cache.get(key);
     if (!item) return null;
 
-    // Refresh position for LRU
+    // Refresh access order (re-insert at tail)
     this.cache.delete(key);
     this.cache.set(key, item);
     return item;
   }
 
   /**
-   * Stores a loaded image into the cache.
+   * Stores a decoded frame and applies intelligent LRU eviction.
    *
    * @param {string} variant
    * @param {number} index
-   * @param {HTMLImageElement} image
+   * @param {HTMLImageElement|ImageBitmap} image
    */
   set(variant, index, image) {
     const key = this.getKey(variant, index);
 
     if (this.cache.has(key)) {
       this.cache.delete(key);
-    } else if (this.maxCapacity > 0 && this.cache.size >= this.maxCapacity) {
-      // Evict oldest accessed item
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) {
-        this.cache.delete(oldestKey);
-      }
     }
 
     this.cache.set(key, image);
     this.markLoaded(variant, index);
+
+    // Evict least recently used unprotected frames if capacity is exceeded
+    if (this.cache.size > this.maxCapacity) {
+      this.evictUnprotected();
+    }
   }
 
   /**
-   * Records that this index has loaded in the variant's mask.
+   * Evicts candidate frames that are not protected by the active navigation window.
+   * Prioritizes oldest accessed entries outside of active and nearby chunks.
+   * Does NOT sacrifice rendering stability if all frames are currently protected.
+   */
+  evictUnprotected() {
+    const targetEvictions = this.cache.size - this.maxCapacity;
+    if (targetEvictions <= 0) return;
+
+    let evictedCount = 0;
+    const candidates = [];
+
+    // Iterate in LRU order (oldest accessed first)
+    for (const [key] of this.cache) {
+      const { variant, index } = this.parseKey(key);
+      if (!this.isProtected(variant, index)) {
+        candidates.push({ key, variant, index });
+        evictedCount++;
+        if (evictedCount >= targetEvictions) break;
+      }
+    }
+
+    // Execute eviction and release resources
+    for (const { key, variant, index } of candidates) {
+      const resource = this.cache.get(key);
+      this.cache.delete(key);
+      this.unmarkLoaded(variant, index);
+      releaseImageResource(resource);
+    }
+  }
+
+  /**
+   * Explicitly evicts and frees a specific frame.
+   *
+   * @param {string} variant
+   * @param {number} index
+   */
+  evict(variant, index) {
+    const key = this.getKey(variant, index);
+    const resource = this.cache.get(key);
+    if (resource) {
+      this.cache.delete(key);
+      this.unmarkLoaded(variant, index);
+      releaseImageResource(resource);
+    }
+  }
+
+  /**
+   * Marks a frame index as loaded in the variant bitmask.
    *
    * @param {string} variant
    * @param {number} index
@@ -92,11 +292,11 @@ export class FrameCache {
   markLoaded(variant, index) {
     let mask = this.variantMasks.get(variant);
     if (!mask) {
-      mask = new Uint8Array(256); // Adequate for sequence lengths
+      mask = new Uint8Array(256);
       this.variantMasks.set(variant, mask);
     }
     if (index >= mask.length) {
-      const expanded = new Uint8Array(index + 64);
+      const expanded = new Uint8Array(index + 128);
       expanded.set(mask);
       mask = expanded;
       this.variantMasks.set(variant, mask);
@@ -105,7 +305,20 @@ export class FrameCache {
   }
 
   /**
-   * Computes the number of loaded frames for a variant within a specified range.
+   * Unmarks a frame index in the variant bitmask upon eviction.
+   *
+   * @param {string} variant
+   * @param {number} index
+   */
+  unmarkLoaded(variant, index) {
+    const mask = this.variantMasks.get(variant);
+    if (mask && index < mask.length) {
+      mask[index] = 0;
+    }
+  }
+
+  /**
+   * Returns loaded count and percentage for a variant.
    *
    * @param {string} variant
    * @param {number} totalFrames
@@ -125,28 +338,39 @@ export class FrameCache {
   }
 
   /**
-   * Clears the entire cache or specific variant.
+   * Clears the cache and releases all underlying memory resources.
    *
-   * @param {string} [variant] If omitted, clears all variants
+   * @param {string} [variant] If omitted, releases all variants
    */
   clear(variant) {
     if (!variant) {
+      for (const resource of this.cache.values()) {
+        releaseImageResource(resource);
+      }
       this.cache.clear();
       this.variantMasks.clear();
       return;
     }
 
     const prefix = `${variant}:`;
-    for (const key of this.cache.keys()) {
+    for (const [key, resource] of this.cache) {
       if (key.startsWith(prefix)) {
         this.cache.delete(key);
+        releaseImageResource(resource);
       }
     }
     this.variantMasks.delete(variant);
   }
 
   /**
-   * Returns current total items stored.
+   * Destroys the cache and frees all resources permanently.
+   */
+  destroy() {
+    this.clear();
+  }
+
+  /**
+   * Returns current total items stored in cache.
    * @returns {number}
    */
   get size() {
@@ -154,5 +378,5 @@ export class FrameCache {
   }
 }
 
-// Default singleton instance
+// Default singleton instance with optimal initial capacity
 export const defaultFrameCache = new FrameCache();

@@ -2,6 +2,7 @@
  * Hotel Experience Configuration
  *
  * Imports authoritative manifest and defines milestones & room overlays.
+ * Initial batch is strictly configured to 50 frames.
  */
 
 import {
@@ -9,18 +10,18 @@ import {
   FRAME_MANIFEST,
   getFrameUrlFromManifest,
   getManifest,
-} from "./manifest";
+} from "./manifest.js";
 
 export { BREAKPOINT_MOBILE_MAX, FRAME_MANIFEST, getFrameUrlFromManifest, getManifest };
 
 export const SEQUENCE_CONFIG = {
   desktop: {
     ...FRAME_MANIFEST.desktop,
-    initialBatchSize: 35,
+    initialBatchSize: 50, // Strictly load first 50 frames initially
   },
   mobile: {
     ...FRAME_MANIFEST.mobile,
-    initialBatchSize: 25,
+    initialBatchSize: 50, // Strictly load first 50 frames initially
   },
 };
 

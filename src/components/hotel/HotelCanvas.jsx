@@ -52,6 +52,9 @@ const HotelCanvas = forwardRef(function HotelCanvas(
       renderFrame: (image) => {
         rendererRef.current?.scheduleRender(image);
       },
+      renderImmediate: (image) => {
+        rendererRef.current?.renderImmediate(image);
+      },
       resize: () => {
         return rendererRef.current?.resize();
       },
