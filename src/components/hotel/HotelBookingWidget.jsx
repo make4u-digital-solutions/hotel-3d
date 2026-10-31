@@ -45,14 +45,16 @@ function calculateNights(checkInStr, checkOutStr) {
 
 const subscribeEmpty = () => () => {};
 
+const SERVER_DATE_SNAPSHOT = Object.freeze({
+  todayStr: "2026-11-01",
+  defaultIn: "2026-11-02",
+  defaultOut: "2026-11-05",
+});
+
 let clientDateSnapshot = null;
 function getClientDateSnapshot() {
   if (typeof window === "undefined") {
-    return {
-      todayStr: "2026-11-01",
-      defaultIn: "2026-11-02",
-      defaultOut: "2026-11-05",
-    };
+    return SERVER_DATE_SNAPSHOT;
   }
   if (!clientDateSnapshot) {
     const today = new Date();
@@ -61,21 +63,17 @@ function getClientDateSnapshot() {
     const dOut = new Date(today);
     dOut.setDate(today.getDate() + 4);
 
-    clientDateSnapshot = {
+    clientDateSnapshot = Object.freeze({
       todayStr: toDateInputValue(today),
       defaultIn: toDateInputValue(dIn),
       defaultOut: toDateInputValue(dOut),
-    };
+    });
   }
   return clientDateSnapshot;
 }
 
 function getServerDateSnapshot() {
-  return {
-    todayStr: "2026-11-01",
-    defaultIn: "2026-11-02",
-    defaultOut: "2026-11-05",
-  };
+  return SERVER_DATE_SNAPSHOT;
 }
 
 export default function HotelBookingWidget({
