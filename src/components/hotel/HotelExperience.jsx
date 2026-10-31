@@ -25,6 +25,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import HotelCanvas from "./HotelCanvas";
 import HotelLoader from "./HotelLoader";
 import HotelOverlay from "./HotelOverlay";
+import HotelNavbar from "./HotelNavbar";
+import HotelBookingWidget from "./HotelBookingWidget";
+import HotelSearchResultsModal from "./HotelSearchResultsModal";
 import { HOTEL_SCENES, SEQUENCE_CONFIG } from "@/lib/hotel/config";
 import {
   getActiveSequenceConfig,
@@ -42,6 +45,10 @@ export default function HotelExperience({
   const containerRef = useRef(null);
   const pinnedRef = useRef(null);
   const canvasComponentRef = useRef(null);
+
+  // Search Results Modal state
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useState(null);
 
   // Active configuration (desktop or mobile)
   const [activeConfig, setActiveConfig] = useState(getActiveSequenceConfig);
@@ -263,6 +270,33 @@ export default function HotelExperience({
     }
   };
 
+  const handleOpenSearch = (params) => {
+    if (params) {
+      setSearchParams(params);
+    }
+    setIsSearchModalOpen(true);
+  };
+
+  const handleBookNowNavbar = () => {
+    setIsSearchModalOpen(true);
+  };
+
+  const handleNavClick = (link) => {
+    if (link.label === "Rooms & Suites") {
+      setIsSearchModalOpen(true);
+    } else if (link.label === "Home") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (link.label === "Experiences") {
+      handleJumpToSection(HOTEL_SCENES[1]);
+    } else if (link.label === "Dining") {
+      handleJumpToSection(HOTEL_SCENES[3]);
+    } else if (link.label === "About Us") {
+      handleJumpToSection(HOTEL_SCENES[0]);
+    } else if (link.label === "Contact") {
+      setIsSearchModalOpen(true);
+    }
+  };
+
   const normalizedProgress =
     (telemetry.currentFrame - 1) / Math.max(1, activeConfig.totalFrames - 1);
 
@@ -272,6 +306,12 @@ export default function HotelExperience({
       className="relative w-full bg-zinc-950"
       style={{ height: scrollDistance }}
     >
+      {/* Light-theme Luxury Hotel Navbar */}
+      <HotelNavbar
+        onBookNowClick={handleBookNowNavbar}
+        onNavClick={handleNavClick}
+      />
+
       {/* Pinned Viewport Container (Locked by GSAP ScrollTrigger) */}
       <div
         ref={pinnedRef}
@@ -300,8 +340,14 @@ export default function HotelExperience({
           onActionClick={handleJumpToSection}
         />
 
+        {/* Hero Section Booking & Search Bar (Light Theme, Bottom of Hero) */}
+        <HotelBookingWidget
+          onSearch={handleOpenSearch}
+          scrollProgress={normalizedProgress}
+        />
+
         {/* Top-Right Progressive Telemetry Badge */}
-        <div className="absolute top-6 right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
+        <div className="absolute top-16 sm:top-20 right-4 sm:right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
           <div className="flex items-center gap-2.5 bg-zinc-950/75 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800 text-xs font-mono shadow-xl">
             <span
               className={`w-2 h-2 rounded-full ${
@@ -384,6 +430,13 @@ export default function HotelExperience({
           </span>
         </div>
       </div>
+
+      {/* Hotel Suite Search Results & Concierge Inquiry Modal */}
+      <HotelSearchResultsModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        searchParams={searchParams}
+      />
     </div>
   );
 }
