@@ -371,35 +371,7 @@ export default function HotelExperience({
           scrollProgress={normalizedProgress}
         />
 
-        {/* Top-Right Progressive Telemetry Badge (Hidden after hero section loads) */}
-        {!telemetry.isInitialReady && (
-          <div className="absolute top-16 sm:top-20 right-4 sm:right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
-            <div className="flex items-center gap-2.5 bg-zinc-950/75 backdrop-blur-md px-4 py-2 rounded-full border border-zinc-800 text-xs font-mono shadow-xl">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-zinc-200 uppercase font-semibold">
-                {telemetry.variant}
-              </span>
-              <span className="text-zinc-600">|</span>
-              <span className="text-amber-300">
-                Frame {String(telemetry.currentFrame).padStart(3, "0")} /{" "}
-                {String(activeConfig.totalFrames).padStart(3, "0")}
-              </span>
-              <span className="text-zinc-600">|</span>
-              <span className="text-cyan-300">
-                Chunk {telemetry.currentChunk} of {telemetry.totalChunks}
-              </span>
-              <span className="text-zinc-600">|</span>
-              <span className="text-emerald-400">
-                {telemetry.totalLoaded} Cached
-              </span>
-            </div>
 
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-950/60 px-3 py-1 rounded-full border border-zinc-800/60">
-              <span>Direction: {telemetry.direction > 0 ? "↓ Forward" : "↑ Reverse"}</span>
-              <span>· Active Chunks: [{telemetry.activeChunks.join(", ")}]</span>
-            </div>
-          </div>
-        )}
 
         {/* Floating Quick Perspective Navigation (for Distant Jumps) */}
         <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30 hidden lg:flex flex-col gap-2 pointer-events-auto">
