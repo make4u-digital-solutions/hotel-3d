@@ -19,38 +19,9 @@
  * @returns {number} Target frame capacity (100–150)
  */
 export function getOptimalCacheCapacity(variant = "desktop") {
-  if (typeof window === "undefined") {
-    return 130;
-  }
-
-  // Check hardware memory API (RAM in GB) if available
-  const deviceMemory =
-    typeof navigator !== "undefined" && "deviceMemory" in navigator
-      ? Number(navigator.deviceMemory)
-      : null;
-
-  // Check CPU cores
-  const hardwareConcurrency =
-    typeof navigator !== "undefined" && "hardwareConcurrency" in navigator
-      ? Number(navigator.hardwareConcurrency)
-      : 4;
-
-  const isMobile =
-    variant === "mobile" ||
-    (typeof window !== "undefined" && window.innerWidth <= 768);
-
-  // Low memory device (<= 4GB RAM or low core mobile)
-  if (isMobile || (deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 2) {
-    return 100;
-  }
-
-  // High-performance desktop (>= 8GB RAM and >= 8 cores)
-  if (!isMobile && deviceMemory !== null && deviceMemory >= 8 && hardwareConcurrency >= 8) {
-    return 150;
-  }
-
-  // Balanced default within 100–150 range
-  return 130;
+  // Allow all 190 frames for both desktop and mobile to remain permanently cached in memory
+  // 190 WebP frames consume ~10-15MB RAM which easily fits in any modern browser/mobile device
+  return 250;
 }
 
 /**
@@ -164,22 +135,11 @@ export class FrameCache {
    * @returns {boolean}
    */
   isProtected(variant, index) {
-    // Only protect frames for the currently active variant
-    if (variant !== this.variant) return false;
+    // Keep all loaded frames for the currently active device variant permanently in memory
+    if (variant === this.variant) return true;
 
-    // Always keep frame 1 (poster frame) in memory
+    // Poster frame of any variant is always preserved
     if (index === 1) return true;
-
-    // Protect active frame neighborhood
-    if (Math.abs(index - this.activeFrame) <= this.protectedRadius) {
-      return true;
-    }
-
-    // Protect active chunk and adjacent chunks (currentChunk ± 1)
-    const frameChunk = Math.floor((index - 1) / this.chunkSize) + 1;
-    if (Math.abs(frameChunk - this.activeChunk) <= 1) {
-      return true;
-    }
 
     return false;
   }

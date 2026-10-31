@@ -31,7 +31,7 @@ export class FrameManager {
    */
   constructor({
     cache,
-    concurrency = 6,
+    concurrency = 8,
     chunkSize = DEFAULT_CHUNK_SIZE,
     prefetchThreshold = DEFAULT_PREFETCH_THRESHOLD,
   }) {
@@ -139,8 +139,14 @@ export class FrameManager {
       });
     }
 
-    // Step 1: Enqueue ONLY Chunk 1 (Frames 1 to 50)
+    // Step 1: Enqueue Chunk 1 (Frames 1 to 50) with priority
     this.enqueueChunk(1, { priorityFrame: 1, direction: 1 });
+
+    // Step 2: Enqueue all remaining chunks (Chunks 2, 3, 4: frames 51 to totalFrames)
+    // behind Chunk 1 so that the entire sequence loads and caches into memory in the background
+    for (let c = 2; c <= this.totalChunks; c++) {
+      this.enqueueChunk(c, { direction: 1, prepend: false });
+    }
 
     // If poster (frame 1) is already cached, notify immediately
     const existingPoster = this.cache.get(this.activeVariant, 1);
@@ -474,12 +480,12 @@ export class FrameManager {
             this.emitProgress();
           }
 
-          this.scheduleNextPump();
+          this.processQueue();
         })
         .catch(() => {
           this.activeRequests.delete(frameIndex);
           this.inFlightCount--;
-          this.scheduleNextPump();
+          this.processQueue();
         });
     }
   }
@@ -488,10 +494,8 @@ export class FrameManager {
    * Schedules the next pump cycle.
    */
   scheduleNextPump() {
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      window.requestIdleCallback(() => this.processQueue(), { timeout: 50 });
-    } else {
-      setTimeout(() => this.processQueue(), 16);
+    if (this.queue.length > 0 && this.inFlightCount < this.concurrency) {
+      setTimeout(() => this.processQueue(), 4);
     }
   }
 

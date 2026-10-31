@@ -20,6 +20,7 @@
  * Adheres strictly to the 70% desktop width container specification.
  */
 
+import { memo } from "react";
 import HotelIntroduction from "./sections/HotelIntroduction";
 import RoomsAndSuites from "./sections/RoomsAndSuites";
 import AboutHotel from "./sections/AboutHotel";
@@ -33,7 +34,7 @@ import HotelFAQ from "./sections/HotelFAQ";
 import FinalBookingCTA from "./sections/FinalBookingCTA";
 import HotelFooter from "./sections/HotelFooter";
 
-export default function HotelHomepage({ onBookClick, onViewSuiteDetails }) {
+function HotelHomepage({ onBookClick, onViewSuiteDetails }) {
   return (
     <div className="w-full relative z-20 bg-[#FAF8F5]">
       {/* Section 1 — Hotel Introduction */}
@@ -79,3 +80,5 @@ export default function HotelHomepage({ onBookClick, onViewSuiteDetails }) {
     </div>
   );
 }
+
+export default memo(HotelHomepage);

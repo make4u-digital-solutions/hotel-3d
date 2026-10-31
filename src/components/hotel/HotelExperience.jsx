@@ -46,6 +46,11 @@ export default function HotelExperience({
   const containerRef = useRef(null);
   const pinnedRef = useRef(null);
   const canvasComponentRef = useRef(null);
+  const scrubLineRef = useRef(null);
+
+  // Active scene tracking for quick perspective buttons (only updates on scene boundary change)
+  const [activeSceneId, setActiveSceneId] = useState(HOTEL_SCENES[0].id);
+  const activeSceneRef = useRef(HOTEL_SCENES[0].id);
 
   // Search Results Modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -54,20 +59,14 @@ export default function HotelExperience({
   // Active configuration (desktop or mobile)
   const [activeConfig, setActiveConfig] = useState(getActiveSequenceConfig);
 
-  // Buffer and progress telemetry
+  // Initial buffer telemetry (ONLY used for the initial 50-frame preloader)
   const [telemetry, setTelemetry] = useState(() => {
     const isCached = defaultFrameCache.has(activeConfig.id, 1);
     return {
       variant: activeConfig.id,
-      currentFrame: 1,
-      currentChunk: 1,
-      totalChunks: Math.ceil(activeConfig.totalFrames / 50),
-      totalLoaded: isCached ? 50 : 0,
       initialLoaded: isCached ? 50 : 0,
       initialPercent: isCached ? 100 : 0,
       isInitialReady: isCached,
-      activeChunks: [1],
-      direction: 1,
     };
   });
 
@@ -103,11 +102,11 @@ export default function HotelExperience({
     }
   }, [activeConfig.id]);
 
-  // Initialize FrameManager: stages initial 50-frame chunk with 6 concurrency
+  // Initialize FrameManager with concurrency 8 and full sequence preloading
   useEffect(() => {
     const frameManager = new FrameManager({
       cache: defaultFrameCache,
-      concurrency: 6,
+      concurrency: 8,
       chunkSize: 50,
       prefetchThreshold: 15,
     });
@@ -131,23 +130,23 @@ export default function HotelExperience({
       }
     };
 
-    // Update telemetry state
+    // Update telemetry state ONLY for initial loader (stops re-renders once ready)
     frameManager.onProgressCallback = (data) => {
-      const activeChunk = frameManager.getChunkIndex(currentTargetFrameRef.current);
-      setTelemetry((prev) => ({
-        ...prev,
-        variant: data.variant,
-        totalLoaded: data.loadedCount,
-        initialLoaded: data.initialLoaded,
-        initialPercent: data.initialPercent,
-        isInitialReady: data.isInitialReady,
-        currentChunk: activeChunk,
-        totalChunks: frameManager.totalChunks,
-        activeChunks: data.activeChunks,
-      }));
+      setTelemetry((prev) => {
+        if (prev.isInitialReady && data.isInitialReady) {
+          return prev;
+        }
+        return {
+          ...prev,
+          variant: data.variant,
+          initialLoaded: data.initialLoaded,
+          initialPercent: data.initialPercent,
+          isInitialReady: data.isInitialReady,
+        };
+      });
     };
 
-    // Initialize sequence: loads ONLY Chunk 1
+    // Initialize sequence: loads Chunk 1 then remaining chunks in background
     frameManager.setSequence(activeConfig);
     frameManagerRef.current = frameManager;
 
@@ -166,7 +165,7 @@ export default function HotelExperience({
     return () => {
       frameManager.destroy();
       frameManagerRef.current = null;
-      defaultFrameCache.clear(activeConfig.id);
+      // DO NOT clear cache on unmount - frames stay permanently cached for the active device
     };
   }, [activeConfig]);
 
@@ -178,33 +177,38 @@ export default function HotelExperience({
       triggerElement: containerRef.current,
       pinnedElement: pinnedRef.current,
       totalFrames: activeConfig.totalFrames,
-      onUpdate: ({ frameIndex, direction, hasFrameChanged }) => {
+      onUpdate: ({ progress, frameIndex, direction, hasFrameChanged }) => {
         currentTargetFrameRef.current = frameIndex;
+
+        // 1. Direct DOM update for scrub progress bar: 0ms overhead, zero React re-render
+        if (scrubLineRef.current) {
+          const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+          scrubLineRef.current.style.width = `${pct}%`;
+        }
+
+        // 2. Active scene indicator - only update state when crossing a scene boundary
+        const matchedScene = HOTEL_SCENES.find(
+          (s) => progress >= s.startProgress && progress <= s.endProgress
+        );
+        const currentSceneId = matchedScene ? matchedScene.id : HOTEL_SCENES[0].id;
+        if (currentSceneId !== activeSceneRef.current) {
+          activeSceneRef.current = currentSceneId;
+          setActiveSceneId(currentSceneId);
+        }
 
         const fm = frameManagerRef.current;
         if (!fm) return;
 
-        // Redraw Canvas only when scrolling requests a different frame
+        // 3. Redraw Canvas only when scrolling requests a different frame
         if (hasFrameChanged) {
-          // Request frame through FrameManager with direction-aware prefetch
           const cachedImg = fm.requestFrame(frameIndex, direction);
 
           if (cachedImg && canvasComponentRef.current) {
-            // Draw cached frame immediately
             canvasComponentRef.current.renderImmediate(cachedImg);
             lastRenderedFrameRef.current = frameIndex;
           } else {
-            // Missing frame: FrameManager prioritized it; keep last displayed frame visible
             renderTargetOrFallback(frameIndex);
           }
-
-          const chunk = fm.getChunkIndex(frameIndex);
-          setTelemetry((prev) => ({
-            ...prev,
-            currentFrame: frameIndex,
-            currentChunk: chunk,
-            direction,
-          }));
         }
       },
     });
@@ -279,16 +283,16 @@ export default function HotelExperience({
     }
   };
 
-  const handleOpenSearch = (params) => {
+  const handleOpenSearch = useCallback((params) => {
     if (params) {
       setSearchParams(params);
     }
     setIsSearchModalOpen(true);
-  };
+  }, []);
 
-  const handleBookNowNavbar = () => {
+  const handleBookNowNavbar = useCallback(() => {
     setIsSearchModalOpen(true);
-  };
+  }, []);
 
   const handleNavClick = (link) => {
     if (link.label === "Rooms & Suites") {
@@ -318,9 +322,6 @@ export default function HotelExperience({
       else setIsSearchModalOpen(true);
     }
   };
-
-  const normalizedProgress =
-    (telemetry.currentFrame - 1) / Math.max(1, activeConfig.totalFrames - 1);
 
   return (
     <div className="relative w-full bg-[#FAF8F5]">
@@ -368,10 +369,7 @@ export default function HotelExperience({
         {/* Hero Section Booking & Search Bar (Light Theme, Bottom of Hero) */}
         <HotelBookingWidget
           onSearch={handleOpenSearch}
-          scrollProgress={normalizedProgress}
         />
-
-
 
         {/* Floating Quick Perspective Navigation (for Distant Jumps) */}
         <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30 hidden lg:flex flex-col gap-2 pointer-events-auto">
@@ -379,9 +377,7 @@ export default function HotelExperience({
             Scenes
           </span>
           {HOTEL_SCENES.map((sec) => {
-            const isActive =
-              normalizedProgress >= sec.startProgress &&
-              normalizedProgress <= sec.endProgress;
+            const isActive = activeSceneId === sec.id;
 
             return (
               <button
@@ -409,13 +405,14 @@ export default function HotelExperience({
           })}
         </div>
 
-        {/* Ambient Bottom Scrub Progress Line */}
+        {/* Ambient Bottom Scrub Progress Line (Driven directly via ref for 60fps smoothness) */}
         <div className="w-full max-w-xl px-8 pb-4 z-20 flex items-center gap-3 pointer-events-none">
           <span className="text-[10px] font-mono text-zinc-500">001</span>
           <div className="flex-1 bg-zinc-800/80 h-1 rounded-full overflow-hidden border border-zinc-800">
             <div
+              ref={scrubLineRef}
               className="h-full bg-gradient-to-r from-amber-500 to-amber-300 rounded-full transition-all duration-75"
-              style={{ width: `${Math.round(normalizedProgress * 100)}%` }}
+              style={{ width: "0%" }}
             />
           </div>
           <span className="text-[10px] font-mono text-zinc-500">
