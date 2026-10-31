@@ -128,34 +128,34 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
             ))}
           </div>
 
-          {/* Right: Actions (Phone number removed, prominent Book Now button) */}
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Amber Gold "Book Now" CTA */}
+          {/* Right: Actions (Book Now on PC, Hamburger Menu on Phone) */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Amber Gold "Book Now" CTA - Only visible on PC/Laptop */}
             <motion.button
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleBookClick}
-              className="px-4.5 py-1.5 sm:px-5 sm:py-2 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-[10px] sm:text-[11px] font-mono font-semibold tracking-[0.16em] uppercase transition-all duration-300 shadow-md shadow-amber-400/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="hidden lg:inline-flex px-4.5 py-1.5 sm:px-5 sm:py-2 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-[10px] sm:text-[11px] font-mono font-semibold tracking-[0.16em] uppercase transition-all duration-300 shadow-md shadow-amber-400/20 items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <span>Book Now</span>
               <span className="text-xs font-bold">→</span>
             </motion.button>
 
-            {/* Mobile Hamburger Toggle */}
+            {/* Mobile Hamburger Toggle (Always visible on phone/tablet) */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle navigation menu"
               aria-expanded={mobileMenuOpen}
-              className="lg:hidden p-1.5 rounded-full text-zinc-200 hover:bg-white/[0.08] transition-colors focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="lg:hidden p-2 rounded-full text-zinc-100 bg-zinc-900/90 border border-white/[0.18] hover:border-amber-400/60 hover:text-amber-300 transition-colors focus:outline-none focus:ring-1 focus:ring-amber-400 flex items-center justify-center cursor-pointer shadow-sm"
             >
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 text-amber-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth="1.8"
+                strokeWidth="2"
               >
                 {mobileMenuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -232,9 +232,10 @@ export default function HotelNavbar({ onBookNowClick, onNavClick }) {
                 <button
                   type="button"
                   onClick={handleBookClick}
-                  className="w-full py-3 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-mono font-semibold uppercase tracking-[0.16em] transition-colors shadow-md shadow-amber-400/20"
+                  className="w-full py-3 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-mono font-semibold uppercase tracking-[0.16em] transition-colors shadow-md shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  Book Your Residence
+                  <span>Book Now</span>
+                  <span className="text-sm font-bold">→</span>
                 </button>
                 <div className="text-center text-[10px] font-mono text-zinc-400">
                   Concierge Desk: <span className="text-amber-400">+1 (800) 555-4321</span>
