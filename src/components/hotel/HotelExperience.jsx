@@ -25,7 +25,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import HotelCanvas from "./HotelCanvas";
 import HotelLoader from "./HotelLoader";
 import HotelOverlay from "./HotelOverlay";
-import { HOTEL_SECTIONS, SEQUENCE_CONFIG } from "@/lib/hotel/config";
+import { HOTEL_SCENES, SEQUENCE_CONFIG } from "@/lib/hotel/config";
 import {
   getActiveSequenceConfig,
   subscribeDeviceChange,
@@ -293,8 +293,12 @@ export default function HotelExperience({
           subtitle={subtitle}
         />
 
-        {/* Real-time Architectural Space Overlays */}
-        <HotelOverlay progress={normalizedProgress} />
+        {/* Real-time Scene Content & Text Transitions */}
+        <HotelOverlay
+          triggerRef={containerRef}
+          totalFrames={activeConfig.totalFrames}
+          onActionClick={handleJumpToSection}
+        />
 
         {/* Top-Right Progressive Telemetry Badge */}
         <div className="absolute top-6 right-8 z-30 pointer-events-none flex flex-col items-end gap-1.5">
@@ -333,9 +337,9 @@ export default function HotelExperience({
         {/* Floating Quick Perspective Navigation (for Distant Jumps) */}
         <div className="absolute right-6 top-1/2 -translate-y-1/2 z-30 hidden lg:flex flex-col gap-2 pointer-events-auto">
           <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-500 px-2 mb-1">
-            Perspectives
+            Scenes
           </span>
-          {HOTEL_SECTIONS.map((sec) => {
+          {HOTEL_SCENES.map((sec) => {
             const isActive =
               normalizedProgress >= sec.startProgress &&
               normalizedProgress <= sec.endProgress;

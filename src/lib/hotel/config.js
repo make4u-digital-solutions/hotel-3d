@@ -1,8 +1,13 @@
 /**
  * Hotel Experience Configuration
  *
- * Imports authoritative manifest and defines milestones & room overlays.
- * Initial batch is strictly configured to 50 frames.
+ * Defines the 6 authoritative hotel scenes and their progress boundaries:
+ * 1. Hotel exterior
+ * 2. Hotel entrance
+ * 3. Reception and lobby
+ * 4. Restaurant and lounge
+ * 5. Guest suite
+ * 6. Final hotel reveal
  */
 
 import {
@@ -17,11 +22,11 @@ export { BREAKPOINT_MOBILE_MAX, FRAME_MANIFEST, getFrameUrlFromManifest, getMani
 export const SEQUENCE_CONFIG = {
   desktop: {
     ...FRAME_MANIFEST.desktop,
-    initialBatchSize: 50, // Strictly load first 50 frames initially
+    initialBatchSize: 50,
   },
   mobile: {
     ...FRAME_MANIFEST.mobile,
-    initialBatchSize: 50, // Strictly load first 50 frames initially
+    initialBatchSize: 50,
   },
 };
 
@@ -38,73 +43,111 @@ export function getFrameUrl(variant, frameNumber) {
 }
 
 /**
- * Architectural room milestones mapped by normalized progress (0.0 to 1.0).
+ * The 6 Authoritative Hotel Scenes mapped by normalized scroll progress.
  */
-export const HOTEL_SECTIONS = [
+export const HOTEL_SCENES = [
   {
-    id: "entrance",
+    id: "exterior",
     number: "01",
-    label: "Arrival",
-    title: "Grand Porte-Cochère",
-    specs: "Volcanic Basalt · Reflective Water Court",
-    description: "A monumental entry sequence welcoming guests with acoustic calm and ambient warmth.",
-    startProgress: 0.02,
+    label: "Hotel Exterior",
+    tag: "01 · THE ESTATE",
+    title: "A Monument of Modern Grandeur",
+    specs: "Honed Quartzite · Water Reflection Terraces",
+    description:
+      "Nestled within coastal flora, sculpted stone terraces and infinity reflection pools frame an unforgettable first impression.",
+    cta: "Explore Grounds",
+    startProgress: 0.00,
     endProgress: 0.16,
     position: "left",
   },
   {
-    id: "living",
+    id: "entrance",
     number: "02",
-    label: "Living Space",
-    title: "The Panoramic Salon",
-    specs: "Floor-to-Ceiling Glass · French Oak",
-    description: "Expansive living spaces bathed in diffused natural daylight with unobstructed ocean vistas.",
-    startProgress: 0.18,
-    endProgress: 0.32,
+    label: "Hotel Entrance",
+    tag: "02 · THE ARRIVAL",
+    title: "The Grand Porte-Cochère",
+    specs: "Monolithic Basalt Pillars · Bronze Gateways",
+    description:
+      "A private covered arrival pavilion welcoming guests with acoustic tranquility and gentle cascading water fountains.",
+    cta: "Valet & Entry",
+    startProgress: 0.17,
+    endProgress: 0.33,
     position: "right",
   },
   {
-    id: "kitchen",
+    id: "lobby",
     number: "03",
-    label: "Dining & Bar",
-    title: "Culinary Atelier",
-    specs: "Calacatta Quartzite · Fluted Walnut",
-    description: "Sculpted stone island complemented by concealed cabinetry and architectural lighting.",
+    label: "Reception & Lobby",
+    tag: "03 · THE RECEPTION",
+    title: "Cathedral of Light & Marble",
+    specs: "Calacatta Gold · Hand-Blown Murano Chandeliers",
+    description:
+      "Double-height glass curtain walls illuminate a sculptural marble reception desk and bespoke low-slung lounge seating.",
+    cta: "Check-In Privileges",
     startProgress: 0.34,
-    endProgress: 0.48,
+    endProgress: 0.50,
     position: "left",
   },
   {
-    id: "bedroom",
+    id: "restaurant",
     number: "04",
-    label: "Private Suite",
-    title: "Master Sanctuary",
-    specs: "Acoustic Slats · Cantilever Terrace",
-    description: "Oriented toward the morning dawn with direct access to private cantilevered decks.",
-    startProgress: 0.50,
-    endProgress: 0.65,
+    label: "Restaurant & Lounge",
+    tag: "04 · CULINARY ATELIER",
+    title: "The Solarium Dining Salon",
+    specs: "Fluted American Walnut · Brushed Brass Bar",
+    description:
+      "Michelin-caliber culinary artistry served against floor-to-ceiling glass pavilions overlooking tranquil gardens.",
+    cta: "Reserve a Table",
+    startProgress: 0.51,
+    endProgress: 0.67,
     position: "right",
   },
   {
-    id: "bathroom",
+    id: "suite",
     number: "05",
-    label: "Wellness Suite",
-    title: "Spa & Thermal Bath",
-    specs: "Honed Monolithic Tub · Sky Oculus",
-    description: "Sculptural soaking tub centered directly underneath a frameless natural daylight aperture.",
-    startProgress: 0.67,
-    endProgress: 0.82,
+    label: "Guest Suite",
+    tag: "05 · SANCTUARY SUITES",
+    title: "The Horizon Master Suite",
+    specs: "Acoustic Slats · Cantilevered Sunrise Terrace",
+    description:
+      "An intimate retreat designed for restful quietude, featuring a private soaking bath and panoramic ocean-facing glass.",
+    cta: "View Suite Details",
+    startProgress: 0.68,
+    endProgress: 0.84,
     position: "left",
   },
   {
-    id: "garden",
+    id: "reveal",
     number: "06",
-    label: "Outdoor Terrace",
-    title: "Botanical Pavilion",
-    specs: "Native Flora · Infinity Edge Pool",
-    description: "An open-air retreat framed by coastal gardens and a reflective sunset horizon.",
-    startProgress: 0.84,
-    endProgress: 0.98,
-    position: "right",
+    label: "Final Hotel Reveal",
+    tag: "06 · THE REVEAL",
+    title: "The Grand Horizon Destination",
+    specs: "5-Star Ultra Luxury · Architectural Icon",
+    description:
+      "Where visionary design meets peerless hospitality. Every perspective curated to inspire lasting memories.",
+    cta: "Book Your Experience",
+    startProgress: 0.85,
+    endProgress: 1.00,
+    position: "center",
   },
 ];
+
+// Alias for backwards compatibility
+export const HOTEL_SECTIONS = HOTEL_SCENES;
+
+/**
+ * Computes exact integer frame boundaries for a scene given sequence totalFrames.
+ *
+ * @param {typeof HOTEL_SCENES[0]} scene
+ * @param {number} totalFrames
+ * @returns {{ startFrame: number, endFrame: number, frameCount: number }}
+ */
+export function getSceneBoundaries(scene, totalFrames) {
+  const startFrame = Math.max(1, Math.round(scene.startProgress * (totalFrames - 1)) + 1);
+  const endFrame = Math.min(totalFrames, Math.round(scene.endProgress * (totalFrames - 1)) + 1);
+  return {
+    startFrame,
+    endFrame,
+    frameCount: Math.max(1, endFrame - startFrame + 1),
+  };
+}
