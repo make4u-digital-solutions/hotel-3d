@@ -11,11 +11,8 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const EXPERIENCES = [
   {
@@ -57,41 +54,8 @@ const EXPERIENCES = [
 ];
 
 export default function HotelExperiences({ onInquireExperience }) {
-  const sectionRef = useRef(null);
-  const cardsRef = useRef([]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      cardsRef.current.forEach((card, index) => {
-        if (!card) return;
-        gsap.fromTo(
-          card,
-          { opacity: 0, y: 30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.7,
-            delay: (index % 2) * 0.12,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 85%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        );
-      });
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="experiences"
       className="w-full py-20 lg:py-28 bg-[#FAF8F5] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
@@ -115,12 +79,9 @@ export default function HotelExperiences({ onInquireExperience }) {
 
         {/* 2-Column Responsive Card Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-7 sm:gap-8">
-          {EXPERIENCES.map((exp, idx) => (
+          {EXPERIENCES.map((exp) => (
             <motion.div
               key={exp.id}
-              ref={(el) => {
-                cardsRef.current[idx] = el;
-              }}
               whileHover={{ y: -4 }}
               transition={{ duration: 0.25 }}
               className="bg-white rounded-3xl border border-[#E8E1D5] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group hover:border-[#B89758]"

@@ -10,11 +10,9 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const GALLERY_PHOTOS = [
   { id: 1, title: "The Solarium Fine Dining", category: "Gastronomy", src: "/images/dining.jpg", span: "md:col-span-8 md:row-span-2" },
@@ -28,8 +26,6 @@ const GALLERY_PHOTOS = [
 const CATEGORIES = ["All", "Architecture", "Suites", "Gastronomy", "Wellness"];
 
 export default function HotelGallery() {
-  const sectionRef = useRef(null);
-  const gridRef = useRef(null);
   const [activeCategory, setActiveCategory] = useState("All");
 
   const filteredPhotos =
@@ -37,34 +33,8 @@ export default function HotelGallery() {
       ? GALLERY_PHOTOS
       : GALLERY_PHOTOS.filter((p) => p.category === activeCategory);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        gridRef.current,
-        { opacity: 0, y: 32 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: gridRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="gallery"
       className="w-full py-20 lg:py-28 bg-white text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
@@ -104,10 +74,7 @@ export default function HotelGallery() {
         </div>
 
         {/* Editorial Grid */}
-        <div
-          ref={gridRef}
-          className="grid grid-cols-1 md:grid-cols-12 gap-5 auto-rows-[240px] sm:auto-rows-[270px]"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 auto-rows-[240px] sm:auto-rows-[270px]">
           <AnimatePresence mode="popLayout">
             {filteredPhotos.map((photo) => (
               <motion.div

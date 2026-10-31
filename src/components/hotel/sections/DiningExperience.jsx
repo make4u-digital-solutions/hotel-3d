@@ -10,11 +10,9 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const MENU_HIGHLIGHTS = [
   { course: "First Course", dish: "Pacific Bluefin Crudo", notes: "Yuzu emulsion, shaved sea fennel, cold-pressed olive nectar" },
@@ -24,44 +22,16 @@ const MENU_HIGHLIGHTS = [
 ];
 
 export default function DiningExperience() {
-  const sectionRef = useRef(null);
-  const contentRef = useRef(null);
   const [showMenuModal, setShowMenuModal] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        contentRef.current,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: contentRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
 
   return (
     <section
-      ref={sectionRef}
       id="dining"
       className="w-full py-20 lg:py-28 bg-[#F5F2EB] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
       <div className="w-[93%] lg:w-[70%] max-w-[1200px] mx-auto">
         {/* Section Header */}
-        <div ref={contentRef} className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+        <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
           <div className="inline-flex items-center gap-2 mb-2.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#B89758]" />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#B89758] font-semibold">

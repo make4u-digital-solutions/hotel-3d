@@ -9,10 +9,7 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const TESTIMONIALS = [
   {
@@ -39,38 +36,8 @@ const TESTIMONIALS = [
 ];
 
 export default function Testimonials() {
-  const sectionRef = useRef(null);
-  const cardsRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cardsRef.current.children,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          stagger: 0.15,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: cardsRef.current,
-            start: "top 82%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="acclaim"
       className="w-full py-20 lg:py-28 bg-[#F5F2EB] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
@@ -92,7 +59,7 @@ export default function Testimonials() {
         </div>
 
         {/* 3-Column Testimonial Cards */}
-        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {TESTIMONIALS.map((t, idx) => (
             <motion.div
               key={idx}

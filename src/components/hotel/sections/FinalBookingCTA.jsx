@@ -10,50 +10,16 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export default function FinalBookingCTA({ onBookClick }) {
-  const sectionRef = useRef(null);
-  const cardRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cardRef.current,
-        { opacity: 0, scale: 0.96, y: 30 },
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: cardRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       className="w-full py-20 lg:py-28 bg-[#FAF8F5] relative border-b border-[#E8E1D5]/60 overflow-hidden"
     >
       <div className="w-[93%] lg:w-[70%] max-w-[1200px] mx-auto">
         <div
-          ref={cardRef}
           className="relative w-full rounded-3xl overflow-hidden bg-zinc-950 p-8 sm:p-14 lg:p-20 shadow-2xl text-center text-white border border-white/[0.12]"
         >
           {/* Background Ambient Image */}

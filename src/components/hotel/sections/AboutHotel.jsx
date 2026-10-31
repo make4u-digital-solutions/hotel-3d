@@ -7,62 +7,14 @@
  * - Brand story and hospitality values
  * - Large supporting architectural photograph
  * - 70% desktop width centered container
+ * - Full 100% opacity visibility at all times (zero scroll opacity reduction)
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export default function AboutHotel() {
-  const sectionRef = useRef(null);
-  const leftColRef = useRef(null);
-  const rightColRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        leftColRef.current,
-        { opacity: 0, x: -30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: leftColRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        rightColRef.current,
-        { opacity: 0, x: 30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: rightColRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="about"
       className="w-full py-20 lg:py-28 bg-[#FAF8F5] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60 overflow-hidden"
     >
@@ -70,7 +22,7 @@ export default function AboutHotel() {
         {/* Editorial Two-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Left Column (Narrative & Story) — 7 cols */}
-          <div ref={leftColRef} className="lg:col-span-7 flex flex-col justify-center">
+          <div className="lg:col-span-7 flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 mb-3">
               <span className="w-1.5 h-1.5 rounded-full bg-[#B89758]" />
               <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#B89758] font-semibold">
@@ -120,7 +72,7 @@ export default function AboutHotel() {
           </div>
 
           {/* Right Column (Large Architectural Photo) — 5 cols */}
-          <div ref={rightColRef} className="lg:col-span-5 relative">
+          <div className="lg:col-span-5 relative">
             <div className="relative aspect-4/5 w-full rounded-3xl overflow-hidden shadow-2xl border border-[#E8E1D5] group">
               <Image
                 src="/images/about.webp"

@@ -10,11 +10,8 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export const ROOM_ITEMS = [
   {
@@ -72,41 +69,8 @@ export const ROOM_ITEMS = [
 ];
 
 export default function RoomsAndSuites({ onBookSuite, onViewDetails }) {
-  const sectionRef = useRef(null);
-  const cardsRef = useRef([]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      cardsRef.current.forEach((card, index) => {
-        if (!card) return;
-        gsap.fromTo(
-          card,
-          { opacity: 0, y: 32 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            delay: (index % 2) * 0.15,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 85%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        );
-      });
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="rooms-and-suites"
       className="w-full py-20 lg:py-28 bg-[#F5F2EB] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
@@ -134,9 +98,6 @@ export default function RoomsAndSuites({ onBookSuite, onViewDetails }) {
           {ROOM_ITEMS.map((suite, idx) => (
             <div
               key={suite.id}
-              ref={(el) => {
-                cardsRef.current[idx] = el;
-              }}
               className="bg-white rounded-3xl border border-[#E8E1D5] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
             >
               {/* Image Container */}

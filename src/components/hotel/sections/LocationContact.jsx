@@ -11,71 +11,22 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export default function LocationContact() {
-  const sectionRef = useRef(null);
-  const leftRef = useRef(null);
-  const rightRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        leftRef.current,
-        { opacity: 0, x: -30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: leftRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        rightRef.current,
-        { opacity: 0, x: 30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: rightRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   const handleGetDirections = () => {
     window.open("https://maps.google.com/?q=The+Grand+Horizon+Resort", "_blank", "noopener,noreferrer");
   };
 
   return (
     <section
-      ref={sectionRef}
       id="contact"
       className="w-full py-20 lg:py-28 bg-[#FAF8F5] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60 overflow-hidden"
     >
       <div className="w-[93%] lg:w-[70%] max-w-[1200px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Left Column (Details & Contacts) — 6 cols */}
-          <div ref={leftRef} className="lg:col-span-6 flex flex-col justify-center">
+          <div className="lg:col-span-6 flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 mb-2.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#B89758]" />
               <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#B89758] font-semibold">
@@ -141,7 +92,7 @@ export default function LocationContact() {
           </div>
 
           {/* Right Column (Stylized Map & Transit Visual) — 6 cols */}
-          <div ref={rightRef} className="lg:col-span-6">
+          <div className="lg:col-span-6">
             <div className="bg-white rounded-3xl border border-[#E8E1D5] p-6 sm:p-8 shadow-xl">
               {/* Stylized Map Viewport */}
               <div className="relative w-full aspect-4/3 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center p-6 mb-6">

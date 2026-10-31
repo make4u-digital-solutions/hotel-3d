@@ -9,63 +9,13 @@
  * - High-resolution supporting photograph with subtle hover parallax
  * - "Discover More" action
  * - 70% desktop width container centered horizontally
+ * - Zero opacity reduction or white overlays on scroll (full 100% visibility)
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export default function HotelIntroduction({ onDiscoverClick }) {
-  const sectionRef = useRef(null);
-  const textRef = useRef(null);
-  const imageRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      // Fade and slide-up entrance for text content
-      gsap.fromTo(
-        textRef.current,
-        { opacity: 0, y: 36 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.9,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: textRef.current,
-            start: "top 85%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-
-      // Subtle scale and reveal for the supporting image
-      gsap.fromTo(
-        imageRef.current,
-        { opacity: 0, scale: 0.96, y: 24 },
-        {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          duration: 1.1,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: imageRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   const handleScrollToSuites = () => {
     if (onDiscoverClick) {
       onDiscoverClick();
@@ -79,14 +29,13 @@ export default function HotelIntroduction({ onDiscoverClick }) {
 
   return (
     <section
-      ref={sectionRef}
       id="introduction"
       className="w-full py-20 lg:py-28 bg-[#FAF8F5] text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
       {/* 70% Viewport Centered Container */}
       <div className="w-[93%] lg:w-[70%] max-w-[1200px] mx-auto">
         {/* Editorial Subtitle & Tag */}
-        <div ref={textRef} className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
           <div className="inline-flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-[#B89758]" />
             <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#B89758] font-semibold">
@@ -117,10 +66,7 @@ export default function HotelIntroduction({ onDiscoverClick }) {
         </div>
 
         {/* Supporting Architectural Photograph */}
-        <div
-          ref={imageRef}
-          className="relative w-full aspect-16/9 sm:aspect-21/9 rounded-3xl overflow-hidden shadow-xl border border-[#E8E1D5] group"
-        >
+        <div className="relative w-full aspect-16/9 sm:aspect-21/9 rounded-3xl overflow-hidden shadow-xl border border-[#E8E1D5] group">
           <Image
             src="/images/intro.webp"
             alt="The Grand Horizon estate grounds and coastal reflection pool"

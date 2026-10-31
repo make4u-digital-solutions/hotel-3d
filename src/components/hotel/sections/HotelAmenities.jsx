@@ -14,11 +14,8 @@
  * - 70% desktop width centered container
  */
 
-import { useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const AMENITY_ITEMS = [
   {
@@ -78,38 +75,8 @@ const AMENITY_ITEMS = [
 ];
 
 export default function HotelAmenities() {
-  const sectionRef = useRef(null);
-  const gridRef = useRef(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        gridRef.current.children,
-        { opacity: 0, y: 28 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.7,
-          stagger: 0.1,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: gridRef.current,
-            start: "top 82%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       id="amenities"
       className="w-full py-20 lg:py-28 bg-white text-[#1A1A1A] relative border-b border-[#E8E1D5]/60"
     >
@@ -131,7 +98,7 @@ export default function HotelAmenities() {
         </div>
 
         {/* 3-Column Responsive Grid */}
-        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
           {AMENITY_ITEMS.map((item) => (
             <motion.div
               key={item.id}
