@@ -22,7 +22,7 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { HOTEL_SCENES, getSceneBoundaries } from "@/lib/hotel/config.js";
+import { HOTEL_SCENES } from "@/lib/hotel/config.js";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -68,13 +68,11 @@ export default function HotelScenes({
         const specsEl = el.querySelector(".scene-specs");
         const descEl = el.querySelector(".scene-desc");
         const ctaEl = el.querySelector(".scene-cta");
-        const counterEl = el.querySelector(".scene-counter");
 
         // Initial hidden state
         gsap.set(el, {
           opacity: 0,
           y: 32,
-          filter: "blur(10px)",
           pointerEvents: "none",
         });
 
@@ -83,15 +81,13 @@ export default function HotelScenes({
         if (specsEl) gsap.set(specsEl, { opacity: 0, y: 10 });
         if (descEl) gsap.set(descEl, { opacity: 0, y: 10 });
         if (ctaEl) gsap.set(ctaEl, { opacity: 0, scale: 0.95 });
-        if (counterEl) gsap.set(counterEl, { opacity: 0 });
 
-        // 1. Entrance Transition (Fade in + slide up + blur clear)
+        // 1. Entrance Transition (Fade in + slide up)
         tl.to(
           el,
           {
             opacity: 1,
             y: 0,
-            filter: "blur(0px)",
             pointerEvents: "auto",
             ease: "power2.out",
             duration: Math.max(0.001, fadeInEnd - start),
@@ -115,17 +111,13 @@ export default function HotelScenes({
         if (ctaEl) {
           tl.to(ctaEl, { opacity: 1, scale: 1, duration: span * 0.15, ease: "back.out(1.4)" }, start + span * 0.15);
         }
-        if (counterEl) {
-          tl.to(counterEl, { opacity: 1, duration: span * 0.12 }, start + span * 0.08);
-        }
 
-        // 2. Exit Transition (Fade out + slide up + soft blur)
+        // 2. Exit Transition (Fade out + slide up)
         tl.to(
           el,
           {
             opacity: 0,
             y: -24,
-            filter: "blur(10px)",
             pointerEvents: "none",
             ease: "power2.in",
             duration: Math.max(0.001, end - fadeOutStart),
@@ -195,7 +187,6 @@ export default function HotelScenes({
       style={{ perspective: "1000px" }}
     >
       {HOTEL_SCENES.map((scene) => {
-        const { startFrame, endFrame } = getSceneBoundaries(scene, totalFrames);
         const isLeft = scene.position === "left";
         const isCenter = scene.position === "center";
 
@@ -216,7 +207,6 @@ export default function HotelScenes({
             style={{
               opacity: 0,
               transform: "translateY(32px)",
-              filter: "blur(10px)",
               pointerEvents: "none",
             }}
           >
@@ -231,16 +221,11 @@ export default function HotelScenes({
               {/* Amber Hairline Highlight */}
               <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
 
-              {/* Tag & Sequence Frame Counter */}
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="scene-tag flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-sm shadow-amber-400" />
-                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-amber-300 font-semibold">
-                    {scene.tag}
-                  </span>
-                </div>
-                <span className="scene-counter text-[10px] font-mono text-zinc-400 tracking-wider">
-                  Frames {String(startFrame).padStart(3, "0")}–{String(endFrame).padStart(3, "0")}
+              {/* Scene Tag */}
+              <div className="scene-tag flex items-center gap-2 mb-2.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-sm shadow-amber-400" />
+                <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-amber-300 font-semibold">
+                  {scene.tag}
                 </span>
               </div>
 
